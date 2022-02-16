@@ -66,7 +66,7 @@ components:
           type: array
           description: WGS84 bbox
           items:
-            type: integer
+            type: number
           minItems: 4
           maxItems: 4
           example: [-90, -90, 90, 90]
@@ -79,4 +79,4 @@ components:
           type: integer
           minimum: 0
           maximum: 18
-          description: The maximum zoom for which metatiles will be calculated. note - the value should be higher or equal than minZoom 
+          description: The maximum zoom for which metatiles will be calculated. note - the value should be higher or equal than minZoom
