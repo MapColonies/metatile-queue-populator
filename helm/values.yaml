@@ -21,7 +21,7 @@ caPath: '/usr/local/share/ca-certificates'
 caKey: 'ca.crt'
 
 image:
-  repository: ts-server-boilerplate
+  repository: metatile-queue-populator
   tag: 'latest'
 
 env:

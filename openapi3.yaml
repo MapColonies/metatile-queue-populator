@@ -1,87 +1,82 @@
 openapi: 3.0.1
 info:
-  title: service-name
-  description: basic template for map colonies service
+  title: metatile-queue-populator
+  description: Service for adding metatiles to a queue based on variety of inputs
   version: 1.0.0
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
 paths:
-  /anotherResource:
-    get:
-      operationId: getAnotherResource
-      tags:
-        - anotherResource
-      summary: gets the resource
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/anotherResource'
-  /resourceName:
-    get:
-      operationId: getResourceName
-      tags:
-        - resourceName
-      summary: gets the resource
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resource'
+  /tiles:
     post:
-      operationId: createResource
-      tags:
-        - resourceName
-      summary: creates a new record of type resource
+      operationId: postTilesByBbox
+      summary: add the all the meta tiles in the given bbox and zoom range into the queue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TilesRequest'
       responses:
-        201:
-          description: created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resource'
+        200:
+          description: OK
         400:
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/error'
+          $ref: '#/components/responses/BadRequest'
+        409:
+          $ref: '#/components/responses/Conflict'
+        5XX:
+          $ref: '#/components/responses/UnexpectedError'
 components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnexpectedError:
+      description: Unexpected Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
-    error:
+    Error:
       type: object
       required:
         - message
       properties:
         message:
           type: string
-    resource:
+
+    TilesRequest:
       type: object
       required:
-        - id
-        - name
-        - description
+        - bbox
+        - minZoom
+        - maxZoom
       properties:
-        id:
-          type: number
-          format: int64
-        name:
-          type: string
-        description:
-          type: string
-    anotherResource:
-      type: object
-      required:
-        - kind
-        - isAlive
-      properties:
-        kind:
-          type: string
-        isAlive:
-          type: boolean
+        bbox:
+          type: array
+          description: WGS84 bbox
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+          example: [-90, -90, 90, 90]
+        minZoom:
+          type: integer
+          minimum: 0
+          maximum: 18
+          description: The minimum zoom for which metatiles will be calculated
+        maxZoom:
+          type: integer
+          minimum: 0
+          maximum: 18
+          description: The maximum zoom for which metatiles will be calculated. note - the value should be higher or equal than minZoom

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: ts-server-boilerplate
-description: A Helm chart for ts-server-boilerplate service
+name: metatile-queue-populator
+description: A Helm chart for metatile-queue-populator service
 type: application
 version: 1.0.0
 appVersion: 1.0.0
