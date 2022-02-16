@@ -16,7 +16,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/tilesRequest'
+              $ref: '#/components/schemas/TilesRequest'
       responses:
         200:
           description: OK
@@ -55,7 +55,7 @@ components:
         message:
           type: string
 
-    tilesRequest:
+    TilesRequest:
       type: object
       required:
         - bbox
@@ -69,11 +69,14 @@ components:
             type: integer
           minItems: 4
           maxItems: 4
+          example: [-90, -90, 90, 90]
         minZoom:
           type: integer
           minimum: 0
           maximum: 18
+          description: The minimum zoom for which metatiles will be calculated
         maxZoom:
           type: integer
           minimum: 0
           maximum: 18
+          description: The maximum zoom for which metatiles will be calculated. note - the value should be higher or equal than minZoom 
