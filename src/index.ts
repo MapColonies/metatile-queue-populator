@@ -5,24 +5,39 @@ import { createServer } from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
 import { container } from 'tsyringe';
-import { get } from 'config';
+import config from 'config';
 import { DEFAULT_SERVER_PORT, SERVICES } from './common/constants';
 
 import { getApp } from './app';
+import { ShutdownHandler } from './common/shutdownHandler';
 
 interface IServerConfig {
   port: string;
 }
 
-const serverConfig = get<IServerConfig>('server');
+const serverConfig = config.get<IServerConfig>('server');
 const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
 
-const app = getApp();
+void getApp()
+  .then((app) => {
+    const logger = container.resolve<Logger>(SERVICES.LOGGER);
+    const stubHealthcheck = async (): Promise<void> => Promise.resolve();
+    const shutdownHandler = container.resolve(ShutdownHandler);
+    const server = createTerminus(createServer(app), {
+      healthChecks: { '/liveness': stubHealthcheck },
+      onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
+    });
 
-const logger = container.resolve<Logger>(SERVICES.LOGGER);
-const stubHealthcheck = async (): Promise<void> => Promise.resolve();
-const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthcheck, onSignal: container.resolve('onSignal') } });
+    server.listen(port, () => {
+      logger.info(`app started on port ${port}`);
+    });
+  })
+  .catch(async (error: Error) => {
+    console.error('😢 - failed initializing the server');
+    console.error(error);
 
-server.listen(port, () => {
-  logger.info(`app started on port ${port}`);
-});
+    if (container.isRegistered(ShutdownHandler)) {
+      const shutdownHandler = container.resolve(ShutdownHandler);
+      await shutdownHandler.shutdown();
+    }
+  });

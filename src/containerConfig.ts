@@ -6,44 +6,45 @@ import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { Metrics } from '@map-colonies/telemetry';
 import { SERVICES, SERVICE_NAME } from './common/constants';
 import { tracing } from './common/tracing';
-import { resourceNameRouterFactory, RESOURCE_NAME_ROUTER_SYMBOL } from './resourceName/routes/resourceNameRouter';
+import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { anotherResourceRouterFactory, ANOTHER_RESOURECE_ROUTER_SYMBOL } from './anotherResource/routes/anotherResourceRouter';
+import { DbConfig, pgBossFactory } from './common/pgbossFactory';
+import { ShutdownHandler } from './common/shutdownHandler';
+import PgBoss from 'pg-boss';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
   useChild?: boolean;
 }
 
-export const registerExternalValues = (options?: RegisterOptions): DependencyContainer => {
-  const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-  // @ts-expect-error the signature is wrong
-  const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
+export const registerExternalValues = async (options?: RegisterOptions): Promise<DependencyContainer> => {
+  const shutdownHandler = new ShutdownHandler();
+  try {
+    const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
+    // @ts-expect-error the signature is wrong
+    const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
 
-  const metrics = new Metrics(SERVICE_NAME);
-  const meter = metrics.start();
+    const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
+    shutdownHandler.addFunction(pgBoss.stop.bind(pgBoss));
+    pgBoss.on('error', logger.error);
+    await pgBoss.start();
 
-  tracing.start();
-  const tracer = trace.getTracer(SERVICE_NAME);
+    tracing.start();
+    const tracer = trace.getTracer(SERVICE_NAME);
+    shutdownHandler.addFunction(tracing.stop.bind(tracing));
 
-  const dependencies: InjectionObject<unknown>[] = [
-    { token: SERVICES.CONFIG, provider: { useValue: config } },
-    { token: SERVICES.LOGGER, provider: { useValue: logger } },
-    { token: SERVICES.TRACER, provider: { useValue: tracer } },
-    { token: SERVICES.METER, provider: { useValue: meter } },
-    { token: RESOURCE_NAME_ROUTER_SYMBOL, provider: { useFactory: resourceNameRouterFactory } },
-    { token: ANOTHER_RESOURECE_ROUTER_SYMBOL, provider: { useFactory: anotherResourceRouterFactory } },
-    {
-      token: 'onSignal',
-      provider: {
-        useValue: {
-          useValue: async (): Promise<void> => {
-            await Promise.all([tracing.stop(), metrics.stop()]);
-          },
-        },
-      },
-    },
-  ];
+    const dependencies: InjectionObject<unknown>[] = [
+      { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
+      { token: SERVICES.CONFIG, provider: { useValue: config } },
+      { token: SERVICES.LOGGER, provider: { useValue: logger } },
+      { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      { token: PgBoss, provider: { useValue: pgBoss } },
+      { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
+    ];
 
-  return registerDependencies(dependencies, options?.override, options?.useChild);
+    return registerDependencies(dependencies, options?.override, options?.useChild);
+  } catch (error) {
+    await shutdownHandler.shutdown();
+    throw error;
+  }
 };
