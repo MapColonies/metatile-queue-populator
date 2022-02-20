@@ -25,6 +25,9 @@
       }
     }
   },
+  "app": {
+    "projectName": "default"
+  },
   "db": {
     "host": "localhost",
     "port": 5432,

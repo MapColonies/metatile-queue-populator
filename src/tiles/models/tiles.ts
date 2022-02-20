@@ -7,7 +7,7 @@ export interface TilesRequest {
 }
 
 export interface TileRequestQueuePayload {
-  bbox: BoundingBox;
+  bbox: BoundingBox[];
   minZoom: number;
   maxZoom: number;
   source: 'api' | 'expiredTiles';

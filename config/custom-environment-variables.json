@@ -39,6 +39,9 @@
       }
     }
   },
+  "app": {
+    "projectName": "APP_PROJECT_NAME"
+  },
   "db": {
     "host": "DB_HOST",
     "port": {

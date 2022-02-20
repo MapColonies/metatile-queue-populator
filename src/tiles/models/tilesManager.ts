@@ -1,18 +1,23 @@
 import { createHash } from 'crypto';
-import { Logger } from '@map-colonies/js-logger';
 import { BoundingBox } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
-import { SERVICES } from '../../common/constants';
+import { PROJECT_NAME_SYMBOL } from '../../common/constants';
 import { TileRequestQueuePayload } from './tiles';
+import { RequestAlreadyInQueueError } from './errors';
+import { TILE_REQUEST_QUEUE_NAME } from './constants';
 
 @injectable()
 export class TilesManager {
-  public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly pgboss: PgBoss) {}
+  private readonly queueName;
+
+  public constructor(private readonly pgboss: PgBoss, @inject(PROJECT_NAME_SYMBOL) projectName: string) {
+    this.queueName = `${TILE_REQUEST_QUEUE_NAME}-${projectName}`;
+  }
 
   public async addTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
     const payload: TileRequestQueuePayload = {
-      bbox,
+      bbox: [bbox],
       minZoom,
       maxZoom,
       source: 'api',
@@ -21,6 +26,9 @@ export class TilesManager {
     const hash = createHash('md5');
     hash.update(JSON.stringify(payload));
 
-    await this.pgboss.sendThrottled('tiles', payload, {}, 25, hash.digest('hex'));
+    const res = await this.pgboss.sendOnce(this.queueName, payload, {}, hash.digest('hex'));
+    if (res === null) {
+      throw new RequestAlreadyInQueueError('Request already in queue');
+    }
   }
 }

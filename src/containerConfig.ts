@@ -3,14 +3,13 @@ import { logMethod } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import { DependencyContainer } from 'tsyringe/dist/typings/types';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
-import { Metrics } from '@map-colonies/telemetry';
-import { SERVICES, SERVICE_NAME } from './common/constants';
+import PgBoss from 'pg-boss';
+import { PROJECT_NAME_SYMBOL, SERVICES, SERVICE_NAME } from './common/constants';
 import { tracing } from './common/tracing';
 import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { DbConfig, pgBossFactory } from './common/pgbossFactory';
 import { ShutdownHandler } from './common/shutdownHandler';
-import PgBoss from 'pg-boss';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -38,6 +37,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get('app.projectName') } },
       { token: PgBoss, provider: { useValue: pgBoss } },
       { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
     ];
