@@ -20,6 +20,13 @@ paths:
       responses:
         200:
           description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    description: message
         400:
           $ref: '#/components/responses/BadRequest'
         409:

@@ -1,1 +1,10 @@
-{}
+{
+  "db": {
+    "host": "postgres",
+    "schema": "public",
+    "username": "postgres",
+    "password": "1234",
+    "database": "postgres",
+    "enableSslAuth": false
+  }
+}

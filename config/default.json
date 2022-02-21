@@ -24,5 +24,22 @@
         "options": null
       }
     }
+  },
+  "app": {
+    "projectName": "default"
+  },
+  "db": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "password": "postgres",
+    "schema": "pgboss",
+    "enableSslAuth": false,
+    "sslPaths": {
+      "ca": "",
+      "key": "",
+      "cert": ""
+    },
+    "database": "postgres"
   }
 }
