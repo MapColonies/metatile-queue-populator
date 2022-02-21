@@ -51,6 +51,17 @@ describe('tiles', function () {
       expect(response).toSatisfyApiSpec();
     });
 
+    it('should return 400 if the bbox north is not smaller than south', async function () {
+      const bbox = getBbox();
+      bbox[1] = bbox[3];
+
+      const response = await requestSender.postTilesRequest(bbox, 0, 1);
+
+      expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+      expect(response.body).toHaveProperty('message', "bounding box's north must be larger than south");
+      expect(response).toSatisfyApiSpec();
+    });
+
     it('should return 400 if the zoom is out of range', async function () {
       const bbox = getBbox();
 

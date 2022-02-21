@@ -7,7 +7,6 @@ import { injectable, inject } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
 import { RequestAlreadyInQueueError } from '../models/errors';
 import { TilesRequest } from '../models/tiles';
-
 import { TilesManager } from '../models/tilesManager';
 
 type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesRequest>;
@@ -17,8 +16,8 @@ export class TilesController {
   public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly manager: TilesManager) {}
 
   public postTilesByBbox: PostTilesByBboxHandler = async (req, res, next) => {
-    const bbox: BoundingBox = { west: req.body.bbox[0], south: req.body.bbox[1], east: req.body.bbox[2], north: req.body.bbox[3] };
-
+    const [west, south, east, north] = req.body.bbox;
+    const bbox: BoundingBox = { west, south, east, north };
     try {
       validateBoundingBox(bbox);
     } catch (error) {
