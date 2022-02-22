@@ -97,7 +97,7 @@ describe('tiles', function () {
   });
   describe('Sad Path', function () {
     it('should return 500 if the queue is not available', async function () {
-      const boss = container.resolve(PgBoss)
+      const boss = container.resolve(PgBoss);
       jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
 
       const bbox = getBbox();
