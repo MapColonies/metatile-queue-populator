@@ -6,7 +6,7 @@ export const DEFAULT_SERVER_PORT = 8080;
 export const IGNORED_OUTGOING_TRACE_ROUTES = [/^.*\/v1\/metrics.*$/];
 export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/];
 
-export const PROJECT_NAME_SYMBOL = Symbol('projectName');
+export const HEALTHCHECK_SYMBOL = Symbol('healthcheck');
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export const SERVICES: Record<string, symbol> = {

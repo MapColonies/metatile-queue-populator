@@ -4,12 +4,14 @@ import { trace } from '@opentelemetry/api';
 import { DependencyContainer } from 'tsyringe/dist/typings/types';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
-import { PROJECT_NAME_SYMBOL, SERVICES, SERVICE_NAME } from './common/constants';
+import { instanceCachingFactory } from 'tsyringe';
+import { HEALTHCHECK_SYMBOL, SERVICES, SERVICE_NAME } from './common/constants';
 import { tracing } from './common/tracing';
 import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { DbConfig, pgBossFactory } from './common/pgbossFactory';
 import { ShutdownHandler } from './common/shutdownHandler';
+import { TilesManager } from './tiles/models/tilesManager';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -25,7 +27,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
 
     const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
     shutdownHandler.addFunction(pgBoss.stop.bind(pgBoss));
-    pgBoss.on('error', logger.error);
+    pgBoss.on('error', logger.error.bind(logger));
     await pgBoss.start();
 
     tracing.start();
@@ -37,8 +39,16 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
-      { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get('app.projectName') } },
       { token: PgBoss, provider: { useValue: pgBoss } },
+      {
+        token: HEALTHCHECK_SYMBOL,
+        provider: {
+          useFactory: instanceCachingFactory((container) => {
+            const tilesManager = container.resolve(TilesManager);
+            return tilesManager.isAlive.bind(tilesManager);
+          }),
+        },
+      },
       { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
     ];
 
