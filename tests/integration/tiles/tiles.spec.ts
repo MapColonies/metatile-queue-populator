@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setTimeout as setTimeoutPromise } from 'timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import config from 'config';
@@ -178,8 +179,8 @@ describe('tiles', function () {
       const result = await boss.fetch<Tile>('tiles-test-requests', 14);
       expect(result).not.toBeNull();
 
-      await boss.complete(result.map((r) => r.id));
-      expect(result.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(result!.map((r) => r.id));
+      expect(result!.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
