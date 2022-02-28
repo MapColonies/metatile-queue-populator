@@ -1,8 +1,8 @@
 import { createHash } from 'crypto';
-import { Logger } from '@map-colonies/js-logger'
-import { BoundingBox, boundingBoxToTiles, Tile } from '@map-colonies/tile-calc';
+import { Logger } from '@map-colonies/js-logger';
+import { BoundingBox, boundingBoxToTiles } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
-import { inject, singleton } from 'tsyringe';
+import { inject, Lifecycle, scoped } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
 import { IConfig } from '../../common/interfaces';
 import { TileRequestQueuePayload } from './tiles';
@@ -10,15 +10,20 @@ import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME, TILES_QUEUE_NAME } from './constants';
 import { stringifyTile } from './util';
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class TilesManager {
   public readonly requestQueueName: string;
   public readonly tilesQueueName: string;
   private readonly batchSize: number;
   private readonly metatile: number;
 
-  public constructor(private readonly pgboss: PgBoss, @inject(SERVICES.CONFIG) config: IConfig, @inject(SERVICES.LOGGER) private readonly logger: Logger) {
+  public constructor(
+    private readonly pgboss: PgBoss,
+    @inject(SERVICES.CONFIG) config: IConfig,
+    @inject(SERVICES.LOGGER) private readonly logger: Logger
+  ) {
     const projectName = config.get<string>('app.projectName');
+
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME}-${projectName}`;
     this.tilesQueueName = `${TILES_QUEUE_NAME}-${projectName}`;
 

@@ -3,7 +3,7 @@ import jsLogger from '@map-colonies/js-logger';
 import config from 'config';
 import { trace } from '@opentelemetry/api';
 import httpStatusCodes from 'http-status-codes';
-import { container } from 'tsyringe';
+import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
 import { getApp } from '../../../src/app';
@@ -13,15 +13,12 @@ import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
 
 describe('tiles', function () {
-  afterAll(async function () {
-    const handler = container.resolve(ShutdownHandler);
-    await handler.shutdown();
-  });
-
   describe('api', () => {
     let requestSender: TilesRequestSender;
+    let container: DependencyContainer;
     beforeAll(async function () {
-      const app = await getApp({
+      const [app, depContainer] = await getApp({
+        useChild: true,
         override: [
           {
             token: SERVICES.CONFIG,
@@ -43,8 +40,14 @@ describe('tiles', function () {
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
+      container = depContainer;
       requestSender = new TilesRequestSender(app);
     });
+
+    // afterAll(async function () {
+    //   const handler = container.resolve(ShutdownHandler);
+    //   await handler.shutdown();
+    // });
 
     describe('Happy Path', function () {
       it('should return ok', async function () {
@@ -124,66 +127,74 @@ describe('tiles', function () {
       });
     });
   });
-});
 
-describe('tileRequestHandler', () => {
-  beforeAll(async function () {
-    const app = await getApp({
-      override: [
-        {
-          token: SERVICES.CONFIG,
-          provider: {
-            useValue: {
-              get: (key: string) => {
-                if (key === 'app.projectName') {
-                  return 'test-requests';
-                } else if (key === 'app.enableRequestQueueHandling') {
-                  return true;
-                } else {
-                  return config.get(key);
-                }
+  describe('tileRequestHandler', () => {
+    let container: DependencyContainer;
+
+    beforeAll(async function () {
+      const [, depContainer] = await getApp({
+        useChild: true,
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  if (key === 'app.projectName') {
+                    return 'test-requests';
+                  } else if (key === 'app.enableRequestQueueHandling') {
+                    return true;
+                  } else {
+                    return config.get(key);
+                  }
+                },
               },
             },
           },
-        },
-        { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
-        { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-      ],
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+        ],
+      });
+      container = depContainer;
     });
-  });
+    afterAll(async function () {
+      const handler = container.resolve(ShutdownHandler);
+      await handler.shutdown();
+    });
 
-  it('should add the tiles from the request into the queue', async () => {
-    const boss = container.resolve(PgBoss);
-    const request = {
-      bbox: [{ west: 35.20076259970665, south: 31.770502933414285, east: 35.21034598016739, north: 31.80173210500818 }],
-      maxZoom: 18,
-      minZoom: 18,
-      source: 'expiredTiles',
-    };
+    it('should add the tiles from the request into the queue', async () => {
+      const boss = container.resolve(PgBoss);
+      const request = {
+        bbox: [{ west: 35.20076259970665, south: 31.770502933414285, east: 35.21034598016739, north: 31.80173210500818 }],
+        maxZoom: 18,
+        minZoom: 18,
+        source: 'expiredTiles',
+      };
 
-    await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-    await setTimeoutPromise(2000);
+      await setTimeoutPromise(2000);
 
-    const result = await boss.fetch<Tile>('tiles-test-requests', 14);
-    console.log(result);
+      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      expect(result).not.toBeNull();
 
-    await boss.complete(result!.map((r) => r.id));
-    expect(result!.map((r) => r.data)).toContainSameTiles([
-      { x: 39177, y: 10594, z: 18, metatile: 8 },
-      { x: 39176, y: 10594, z: 18, metatile: 8 },
-      { x: 39176, y: 10595, z: 18, metatile: 8 },
-      { x: 39176, y: 10596, z: 18, metatile: 8 },
-      { x: 39177, y: 10595, z: 18, metatile: 8 },
-      { x: 39177, y: 10596, z: 18, metatile: 8 },
-      { x: 39177, y: 10597, z: 18, metatile: 8 },
-      { x: 39176, y: 10597, z: 18, metatile: 8 },
-      { x: 39176, y: 10598, z: 18, metatile: 8 },
-      { x: 39176, y: 10599, z: 18, metatile: 8 },
-      { x: 39177, y: 10598, z: 18, metatile: 8 },
-      { x: 39177, y: 10599, z: 18, metatile: 8 },
-      { x: 39177, y: 10600, z: 18, metatile: 8 },
-      { x: 39176, y: 10600, z: 18, metatile: 8 },
-    ]);
+      await boss.complete(result.map((r) => r.id));
+      expect(result.map((r) => r.data)).toContainSameTiles([
+        { x: 39177, y: 10594, z: 18, metatile: 8 },
+        { x: 39176, y: 10594, z: 18, metatile: 8 },
+        { x: 39176, y: 10595, z: 18, metatile: 8 },
+        { x: 39176, y: 10596, z: 18, metatile: 8 },
+        { x: 39177, y: 10595, z: 18, metatile: 8 },
+        { x: 39177, y: 10596, z: 18, metatile: 8 },
+        { x: 39177, y: 10597, z: 18, metatile: 8 },
+        { x: 39176, y: 10597, z: 18, metatile: 8 },
+        { x: 39176, y: 10598, z: 18, metatile: 8 },
+        { x: 39176, y: 10599, z: 18, metatile: 8 },
+        { x: 39177, y: 10598, z: 18, metatile: 8 },
+        { x: 39177, y: 10599, z: 18, metatile: 8 },
+        { x: 39177, y: 10600, z: 18, metatile: 8 },
+        { x: 39176, y: 10600, z: 18, metatile: 8 },
+      ]);
+    });
   });
 });

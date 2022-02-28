@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 16
 
       - name: Install dependencies
         run: npm ci
@@ -47,13 +47,46 @@ jobs:
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
+    container: node:16
+
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres:13
+        # Provide the password for postgres
+        env:
+          POSTGRES_PASSWORD: 1234
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     strategy:
       matrix:
-        node: [12.x, 14.x]
+        node: [16.x]
 
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
+
+      - name: Install pg client
+        run: |
+          apt-get update && apt-get install -y lsb-release
+          sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+          apt-get update
+          apt-get install -y postgresql-client
+      - name: Create schema
+        run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
+        env:
+          PGPASSWORD: 1234
 
       - name: Set up Node.js
         uses: actions/setup-node@v1
