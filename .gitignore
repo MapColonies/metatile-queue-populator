@@ -111,3 +111,4 @@ dist
 jest_html_reporters.html
 reports
 local.json
+myvalues.yaml

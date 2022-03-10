@@ -19,4 +19,24 @@ data:
   TELEMETRY_METRICS_ENABLED: 'true'
   TELEMETRY_METRICS_URL: {{ $metricsUrl }}
   {{ end }}
+  {{- with .Values.dbConfig }}
+  DB_HOST: {{ .host }}
+  DB_NAME: {{ .database }}
+  DB_SCHEMA: {{ .schema }}
+  DB_PORT: {{ .port | quote }}
+  {{- end -}}
+  {{- if .Values.dbConfig.sslAuth.enabled }}
+  DB_ENABLE_SSL_AUTH: "true"
+  DB_CERT_SECRET_NAME: {{ .Values.dbConfig.sslAuth.secretName }}
+  DB_CERT_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.certFileName }}
+  DB_KEY_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.keyFileName }}
+  DB_CA_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.caFileName }}
+  {{- else }}
+  DB_ENABLE_SSL_AUTH: "false"
+  {{- end }}
+  APP_PROJECT_NAME: {{ .Values.env.projectName | quote }}
+  APP_ENABLE_REQUEST_QUEUE_HANDLING: {{ .Values.env.enableRequestQueueHandling | quote }}
+  APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC: {{ .Values.env.requestQueueCheckIntervalSec | quote }}
+  APP_TILES_BATCH_SIZE: {{ .Values.env.tilesBatchSize | quote }}
+  APP_METATILE_SIZE: {{ .Values.env.metatileSize | quote }}
 {{- end }}
