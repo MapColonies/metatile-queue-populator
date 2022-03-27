@@ -22,9 +22,15 @@ caKey: 'ca.crt'
 
 image:
   repository: metatile-queue-populator
-  tag: 'latest'
+  pullPolicy: Always
+  # tag: 'latest'
 
 env:
+  projectName: 'default'
+  enableRequestQueueHandling: true
+  requestQueueCheckIntervalSec: 60
+  tilesBatchSize: 10000
+  metatileSize: 8
   port: 8080
   targetPort: 8080
   protocol: TCP
@@ -38,6 +44,20 @@ env:
   metrics:
     enabled: false
     url: http://localhost:55681/v1/metrics
+
+dbConfig:
+  host: localhost
+  username: postgres
+  password: postgres
+  database: metatile-queue-populator
+  schema: pgboss
+  port: 5432
+  sslAuth:
+    enabled: false
+    secretName: secret-name
+    certFileName: postgresql.crt
+    keyFileName: postgresql.key
+    caFileName: root.crt
 
 resources:
   enabled: true

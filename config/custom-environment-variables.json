@@ -40,7 +40,23 @@
     }
   },
   "app": {
-    "projectName": "APP_PROJECT_NAME"
+    "projectName": "APP_PROJECT_NAME",
+    "enableRequestQueueHandling": {
+      "__name": "APP_ENABLE_REQUEST_QUEUE_HANDLING",
+      "__format": "boolean"
+    },
+    "requestQueueCheckIntervalSec": {
+      "__name": "APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC",
+      "__format": "number"
+    },
+    "tilesBatchSize": {
+      "__name": "APP_TILES_BATCH_SIZE",
+      "__format": "number"
+    },
+    "metatileSize": {
+      "__name": "APP_METATILE_SIZE",
+      "__format": "number"
+    }
   },
   "db": {
     "host": "DB_HOST",

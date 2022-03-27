@@ -26,7 +26,11 @@
     }
   },
   "app": {
-    "projectName": "default"
+    "projectName": "default",
+    "enableRequestQueueHandling": true,
+    "requestQueueCheckIntervalSec": 30,
+    "tilesBatchSize": 10000,
+    "metatileSize": 8
   },
   "db": {
     "host": "localhost",

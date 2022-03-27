@@ -43,12 +43,18 @@ spec:
         - name: {{ $releaseName }}-{{ $chartName }}-deployment
           {{- with .Values.image }}
           image: {{ $cloudProviderDockerRegistryUrl }}{{ .repository }}:{{ $imageTag }}
+          imagePullPolicy: {{ .pullPolicy }}
           {{- end }}
           volumeMounts:
             {{- if .Values.caSecretName }}
             - mountPath: {{ printf "%s/%s" .Values.caPath .Values.caKey | quote }}
               name: root-ca
               subPath: {{ quote .Values.caKey }}
+            {{- end }}
+            {{- if .Values.dbConfig.sslAuth.enabled }}
+            - name: cert-conf
+              mountPath: /tmp/certs
+              readOnly: true
             {{- end }}
           env:
             - name: SERVER_PORT
@@ -62,6 +68,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ $releaseName }}-{{ $chartName }}-configmap
+            - secretRef:
+                name: {{ $releaseName }}-{{ $chartName }}-secret
           ports:
             - name: http
               containerPort: {{ .Values.env.targetPort }}
@@ -80,5 +88,10 @@ spec:
         - name: root-ca
           secret:
             secretName: {{ .Values.caSecretName }}
+        {{- end }}
+        {{- if .Values.dbConfig.sslAuth.enabled }}
+        - name: cert-conf
+          secret:
+            secretName: {{ .Values.dbConfig.sslAuth.secretName }}
         {{- end }}
 {{- end -}}
