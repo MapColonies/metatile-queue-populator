@@ -8,7 +8,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 paths:
-  /tiles:
+  /tiles/bbox:
     post:
       operationId: postTilesByBbox
       summary: add the all the meta tiles in the given bbox and zoom range into the queue
