@@ -45,16 +45,12 @@ describe('tiles', function () {
       requestSender = new TilesRequestSender(app);
     });
 
-    // afterAll(async function () {
-    //   const handler = container.resolve(ShutdownHandler);
-    //   await handler.shutdown();
-    // });
 
     describe('Happy Path', function () {
       it('should return ok', async function () {
         const bbox = getBbox();
 
-        const response = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
         expect(response.status).toBe(httpStatusCodes.OK);
         expect(response).toSatisfyApiSpec();
@@ -65,7 +61,7 @@ describe('tiles', function () {
         const bbox = getBbox();
         bbox[0] = bbox[2];
 
-        const response = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
         expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
         expect(response.body).toHaveProperty('message', "bounding box's east must be larger than west");
@@ -76,7 +72,7 @@ describe('tiles', function () {
         const bbox = getBbox();
         bbox[1] = bbox[3];
 
-        const response = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
         expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
         expect(response.body).toHaveProperty('message', "bounding box's north must be larger than south");
@@ -86,7 +82,7 @@ describe('tiles', function () {
       it('should return 400 if the zoom is out of range', async function () {
         const bbox = getBbox();
 
-        const response = await requestSender.postTilesRequest(bbox, -1, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, -1, 1);
 
         expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
         expect(response.body).toHaveProperty('message', 'request.body.minZoom should be >= 0');
@@ -96,7 +92,7 @@ describe('tiles', function () {
       it('should return 400 if minZoom is greater than maxZoom', async function () {
         const bbox = getBbox();
 
-        const response = await requestSender.postTilesRequest(bbox, 1, 0);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 1, 0);
 
         expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
         expect(response.body).toHaveProperty('message', 'minZoom must be less than or equal to maxZoom');
@@ -106,10 +102,10 @@ describe('tiles', function () {
       it('should return 409 if the request is already in queue', async function () {
         const bbox = getBbox();
 
-        const response = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
         expect(response.status).toBe(httpStatusCodes.OK);
 
-        const response2 = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response2 = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
         expect(response2.status).toBe(httpStatusCodes.CONFLICT);
         expect(response2.body).toHaveProperty('message', 'Request already in queue');
@@ -123,7 +119,7 @@ describe('tiles', function () {
 
         const bbox = getBbox();
 
-        const response = await requestSender.postTilesRequest(bbox, 0, 1);
+        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
         expect(response.status).toBe(httpStatusCodes.INTERNAL_SERVER_ERROR);
       });
     });
