@@ -45,7 +45,6 @@ describe('tiles', function () {
       requestSender = new TilesRequestSender(app);
     });
 
-
     describe('Happy Path', function () {
       it('should return ok', async function () {
         const bbox = getBbox();
