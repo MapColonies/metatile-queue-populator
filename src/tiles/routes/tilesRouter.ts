@@ -7,6 +7,7 @@ const tilesRouterFactory: FactoryFunction<Router> = (dependencyContainer) => {
   const controller = dependencyContainer.resolve(TilesController);
 
   router.post('/bbox', controller.postTilesByBbox);
+  router.post('/list', controller.postTilesList);
 
   return router;
 };

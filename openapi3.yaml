@@ -8,6 +8,30 @@ info:
     url: https://opensource.org/licenses/MIT
 
 paths:
+  /tiles/list:
+    post:
+      operationId: postTilesList
+      summary: Add metatiles to the queue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TilesListRequest'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    description: message
+        400:
+          $ref: '#/components/responses/BadRequest'
+        5XX:
+          $ref: '#/components/responses/UnexpectedError'
+
   /tiles/bbox:
     post:
       operationId: postTilesByBbox
@@ -16,7 +40,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TilesRequest'
+              $ref: '#/components/schemas/BboxTilesRequest'
       responses:
         200:
           description: OK
@@ -62,7 +86,26 @@ components:
         message:
           type: string
 
-    TilesRequest:
+    TilesListRequest:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required:
+          - z
+          - x
+          - y
+        properties:
+          x:
+            type: integer
+          y:
+            type: integer
+          z:
+            type: integer
+          metatile:
+            type: integer
+            default: 1
+    BboxTilesRequest:
       type: object
       required:
         - bbox

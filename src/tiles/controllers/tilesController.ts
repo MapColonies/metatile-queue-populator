@@ -1,15 +1,16 @@
 import { Logger } from '@map-colonies/js-logger';
-import { BoundingBox, validateBoundingBox } from '@map-colonies/tile-calc';
+import { BoundingBox, Tile, validateBoundingBox, validateTile, TILEGRID_WORLD_CRS84 } from '@map-colonies/tile-calc';
 import { RequestHandler } from 'express';
 import { HttpError } from 'express-openapi-validator/dist/framework/types';
 import httpStatus from 'http-status-codes';
 import { injectable, inject } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
 import { RequestAlreadyInQueueError } from '../models/errors';
-import { TilesRequest } from '../models/tiles';
+import { TilesByBboxRequest } from '../models/tiles';
 import { TilesManager } from '../models/tilesManager';
 
-type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesRequest>;
+type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesByBboxRequest>;
+type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[]>;
 
 @injectable()
 export class TilesController {
@@ -32,13 +33,30 @@ export class TilesController {
     }
 
     try {
-      await this.manager.addTilesRequestToQueue(bbox, req.body.minZoom, req.body.maxZoom);
+      await this.manager.addBboxTilesRequestToQueue(bbox, req.body.minZoom, req.body.maxZoom);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
       if (error instanceof RequestAlreadyInQueueError) {
         (error as HttpError).status = httpStatus.CONFLICT;
       }
 
+      next(error);
+    }
+  };
+
+  public postTilesList: PostTilesListHandler = async (req, res, next) => {
+    const tiles: Tile[] = req.body;
+    try {
+      tiles.forEach((tile) => validateTile(tile, TILEGRID_WORLD_CRS84));
+    } catch (error) {
+      (error as HttpError).status = httpStatus.BAD_REQUEST;
+      return next(error);
+    }
+
+    try {
+      await this.manager.addTilesToQueue(tiles);
+      return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
+    } catch (error) {
       next(error);
     }
   };

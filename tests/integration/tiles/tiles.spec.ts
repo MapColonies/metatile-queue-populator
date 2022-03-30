@@ -46,80 +46,140 @@ describe('tiles', function () {
     });
 
     describe('Happy Path', function () {
-      it('should return ok', async function () {
-        const bbox = getBbox();
+      describe('POST /tiles/bbox', function () {
+        it('should return ok', async function () {
+          const bbox = getBbox();
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+          const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
-        expect(response.status).toBe(httpStatusCodes.OK);
-        expect(response).toSatisfyApiSpec();
+          expect(response.status).toBe(httpStatusCodes.OK);
+          expect(response).toSatisfyApiSpec();
+        });
+      });
+
+      describe('POST /tiles/list', function () {
+        it('should return ok', async function () {
+          const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
+
+          expect(response.status).toBe(httpStatusCodes.OK);
+
+          expect(response).toSatisfyApiSpec();
+        });
       });
     });
     describe('Bad Path', function () {
-      it('should return 400 if the bbox is invalid', async function () {
-        const bbox = getBbox();
-        bbox[0] = bbox[2];
+      describe('POST /tiles/bbox', function () {
+        it('should return 400 if the bbox is invalid', async function () {
+          const bbox = getBbox();
+          bbox[0] = bbox[2];
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+          const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
 
-        expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-        expect(response.body).toHaveProperty('message', "bounding box's east must be larger than west");
-        expect(response).toSatisfyApiSpec();
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', "bounding box's east must be larger than west");
+          expect(response).toSatisfyApiSpec();
+        });
+
+        it('should return 400 if the bbox north is not smaller than south', async function () {
+          const bbox = getBbox();
+          bbox[1] = bbox[3];
+
+          const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', "bounding box's north must be larger than south");
+          expect(response).toSatisfyApiSpec();
+        });
+
+        it('should return 400 if the zoom is out of range', async function () {
+          const bbox = getBbox();
+
+          const response = await requestSender.postTilesByBboxRequest(bbox, -1, 1);
+
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', 'request.body.minZoom should be >= 0');
+          expect(response).toSatisfyApiSpec();
+        });
+
+        it('should return 400 if minZoom is greater than maxZoom', async function () {
+          const bbox = getBbox();
+
+          const response = await requestSender.postTilesByBboxRequest(bbox, 1, 0);
+
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', 'minZoom must be less than or equal to maxZoom');
+          expect(response).toSatisfyApiSpec();
+        });
+
+        it('should return 409 if the request is already in queue', async function () {
+          const bbox = getBbox();
+
+          const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+          expect(response.status).toBe(httpStatusCodes.OK);
+
+          const response2 = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+
+          expect(response2.status).toBe(httpStatusCodes.CONFLICT);
+          expect(response2.body).toHaveProperty('message', 'Request already in queue');
+          expect(response2).toSatisfyApiSpec();
+        });
       });
 
-      it('should return 400 if the bbox north is not smaller than south', async function () {
-        const bbox = getBbox();
-        bbox[1] = bbox[3];
+      describe('POST /tiles/list', function () {
+        it('should return 400 if the body is not a list', async function () {
+          const response = await requestSender.postTilesList({} as []);
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', 'request.body should be array');
+          expect(response).toSatisfyApiSpec();
+        });
 
-        expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-        expect(response.body).toHaveProperty('message', "bounding box's north must be larger than south");
-        expect(response).toSatisfyApiSpec();
-      });
+        it('should return 400 if the body is empty', async function () {
+          const response = await requestSender.postTilesList([]);
 
-      it('should return 400 if the zoom is out of range', async function () {
-        const bbox = getBbox();
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', 'request.body should NOT have fewer than 1 items');
+          expect(response).toSatisfyApiSpec();
+        });
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, -1, 1);
+        it('should return 400 if the body is not a valid tile', async function () {
+          const response = await requestSender.postTilesList([{ x: 0, y: 0 } as Tile]);
 
-        expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-        expect(response.body).toHaveProperty('message', 'request.body.minZoom should be >= 0');
-        expect(response).toSatisfyApiSpec();
-      });
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', "request.body[0] should have required property 'z'");
+          expect(response).toSatisfyApiSpec();
+        });
 
-      it('should return 400 if minZoom is greater than maxZoom', async function () {
-        const bbox = getBbox();
+        it('should return 400 if the body contains tile that is out of bounds', async function () {
+          const response = await requestSender.postTilesList([{ z: 0, x: 1, y: 1, metatile: 8 } as Tile]);
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, 1, 0);
-
-        expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-        expect(response.body).toHaveProperty('message', 'minZoom must be less than or equal to maxZoom');
-        expect(response).toSatisfyApiSpec();
-      });
-
-      it('should return 409 if the request is already in queue', async function () {
-        const bbox = getBbox();
-
-        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
-        expect(response.status).toBe(httpStatusCodes.OK);
-
-        const response2 = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
-
-        expect(response2.status).toBe(httpStatusCodes.CONFLICT);
-        expect(response2.body).toHaveProperty('message', 'Request already in queue');
-        expect(response2).toSatisfyApiSpec();
+          expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
+          expect(response.body).toHaveProperty('message', 'x index out of range of tile grid');
+          expect(response).toSatisfyApiSpec();
+        });
       });
     });
     describe('Sad Path', function () {
-      it('should return 500 if the queue is not available', async function () {
-        const boss = container.resolve(PgBoss);
-        jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
+      describe('POST /tiles/bbox', function () {
+        it('should return 500 if the queue is not available', async function () {
+          const boss = container.resolve(PgBoss);
+          jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
 
-        const bbox = getBbox();
+          const bbox = getBbox();
 
-        const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
-        expect(response.status).toBe(httpStatusCodes.INTERNAL_SERVER_ERROR);
+          const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
+          expect(response.status).toBe(httpStatusCodes.INTERNAL_SERVER_ERROR);
+        });
+      });
+
+      describe('POST /tiles/list', function () {
+        it('should return 500 if the queue is not available', async function () {
+          const boss = container.resolve(PgBoss);
+          jest.spyOn(boss, 'insert').mockRejectedValueOnce(new Error('failed'));
+
+          const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
+          expect(response.status).toBe(httpStatusCodes.INTERNAL_SERVER_ERROR);
+        });
       });
     });
   });
