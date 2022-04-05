@@ -47,7 +47,7 @@ describe('tiles', function () {
 
     describe('Happy Path', function () {
       describe('POST /tiles/bbox', function () {
-        it('should return ok', async function () {
+        it('should return 200 if the request is valid', async function () {
           const bbox = getBbox();
 
           const response = await requestSender.postTilesByBboxRequest(bbox, 0, 1);
@@ -58,7 +58,7 @@ describe('tiles', function () {
       });
 
       describe('POST /tiles/list', function () {
-        it('should return ok', async function () {
+        it('should return 200 if the request is valid', async function () {
           const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
 
           expect(response.status).toBe(httpStatusCodes.OK);
@@ -67,6 +67,7 @@ describe('tiles', function () {
         });
       });
     });
+
     describe('Bad Path', function () {
       describe('POST /tiles/bbox', function () {
         it('should return 400 if the bbox is invalid', async function () {
@@ -159,6 +160,7 @@ describe('tiles', function () {
         });
       });
     });
+    
     describe('Sad Path', function () {
       describe('POST /tiles/bbox', function () {
         it('should return 500 if the queue is not available', async function () {

@@ -49,8 +49,8 @@ export class TilesManager {
   }
 
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
-    const tileArr = tiles.map((tile) => ({ name: this.tilesQueueName, data: tile }));
-    await this.pgboss.insert(tileArr);
+    const tileJobsArr = tiles.map((tile) => ({ name: this.tilesQueueName, data: tile }));
+    await this.pgboss.insert(tileJobsArr);
   }
 
   public async isAlive(): Promise<void> {
