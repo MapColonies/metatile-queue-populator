@@ -1,6 +1,6 @@
 import { BoundingBox } from '@map-colonies/tile-calc';
 
-export interface TilesRequest {
+export interface TilesByBboxRequest {
   bbox: [number, number, number, number];
   minZoom: number;
   maxZoom: number;

@@ -27,12 +27,13 @@ describe('tilesManager', () => {
       has: jest.fn(),
     };
   });
-  describe('#addTilesRequestToQueue', () => {
+
+  describe('#addBboxTilesRequestToQueue', () => {
     it('resolve without error if everything is valid', async function () {
       const sendOnceMock = jest.fn().mockResolvedValue('ok');
       const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger);
 
-      const resource = tilesManager.addTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
+      const resource = tilesManager.addBboxTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
 
       await expect(resource).resolves.not.toThrow();
     });
@@ -41,7 +42,7 @@ describe('tilesManager', () => {
       const sendOnceMock = jest.fn().mockResolvedValue(null);
       const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger);
 
-      const resource = tilesManager.addTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
+      const resource = tilesManager.addBboxTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
 
       await expect(resource).rejects.toThrow(RequestAlreadyInQueueError);
     });
@@ -50,7 +51,7 @@ describe('tilesManager', () => {
       const sendOnceMock = jest.fn().mockRejectedValue(new Error('test'));
       const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger);
 
-      const resource = tilesManager.addTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
+      const resource = tilesManager.addBboxTilesRequestToQueue({ east: 90, north: 90, south: -90, west: -90 }, 0, 0);
 
       await expect(resource).rejects.toThrow('test');
     });
@@ -73,6 +74,29 @@ describe('tilesManager', () => {
       const isAlivePromise = tilesManager.isAlive();
 
       await expect(isAlivePromise).rejects.toThrow('test');
+    });
+  });
+
+  describe('#addTilesToQueue', () => {
+    it('should insert the tiles into the queue', async function () {
+      const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile>[]]>().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+
+      const promise = tilesManager.addTilesToQueue([
+        { x: 9794, y: 2650, z: 16, metatile: 8 },
+        { x: 39176, y: 10600, z: 18, metatile: 8 },
+        { x: 19588, y: 5300, z: 17, metatile: 8 },
+      ]) as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>;
+
+      await expect(promise).resolves.not.toThrow();
+      expect(insertMock).toHaveBeenCalledTimes(1);
+
+      const args = insertMock.mock.calls[0][0];
+      expect(args.map((job) => job.data)).toContainSameTiles([
+        { x: 9794, y: 2650, z: 16, metatile: 8 },
+        { x: 39176, y: 10600, z: 18, metatile: 8 },
+        { x: 19588, y: 5300, z: 17, metatile: 8 },
+      ]);
     });
   });
 

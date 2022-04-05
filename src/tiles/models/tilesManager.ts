@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { Logger } from '@map-colonies/js-logger';
-import { BoundingBox, boundingBoxToTiles } from '@map-colonies/tile-calc';
+import { BoundingBox, boundingBoxToTiles, Tile } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import { inject, Lifecycle, scoped } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
@@ -31,7 +31,7 @@ export class TilesManager {
     this.metatile = config.get<number>('app.metatileSize');
   }
 
-  public async addTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
+  public async addBboxTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
     const payload: TileRequestQueuePayload = {
       bbox: [bbox],
       minZoom,
@@ -46,6 +46,11 @@ export class TilesManager {
     if (res === null) {
       throw new RequestAlreadyInQueueError('Request already in queue');
     }
+  }
+
+  public async addTilesToQueue(tiles: Tile[]): Promise<void> {
+    const tileJobsArr = tiles.map((tile) => ({ name: this.tilesQueueName, data: tile }));
+    await this.pgboss.insert(tileJobsArr);
   }
 
   public async isAlive(): Promise<void> {
