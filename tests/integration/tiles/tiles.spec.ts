@@ -160,7 +160,7 @@ describe('tiles', function () {
         });
       });
     });
-    
+
     describe('Sad Path', function () {
       describe('POST /tiles/bbox', function () {
         it('should return 500 if the queue is not available', async function () {

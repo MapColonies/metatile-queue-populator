@@ -1,4 +1,5 @@
 import jsLogger from '@map-colonies/js-logger';
+import { faker } from '@faker-js/faker';
 import { Tile } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import { IConfig } from '../../../../src/common/interfaces';
@@ -98,6 +99,24 @@ describe('tilesManager', () => {
         { x: 19588, y: 5300, z: 17, metatile: 8 },
       ]);
     });
+
+    it('should add the same parent id to all the tiles added', async function () {
+      const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile & { parent: string }>[]]>().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+
+      const promise = tilesManager.addTilesToQueue([
+        { x: 9794, y: 2650, z: 16, metatile: 8 },
+        { x: 39176, y: 10600, z: 18, metatile: 8 },
+      ]) as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>;
+
+      await expect(promise).resolves.not.toThrow();
+      expect(insertMock).toHaveBeenCalledTimes(1);
+
+      const args = insertMock.mock.calls[0][0];
+
+      expect(args[0].data?.parent).toBeDefined();
+      expect(args[0].data?.parent).toBe(args[1].data?.parent);
+    });
   });
 
   describe('#handleTileRequest', () => {
@@ -186,6 +205,33 @@ describe('tilesManager', () => {
           { x: 39177, y: 10599, z: 18, metatile: 8 },
           { x: 39177, y: 10600, z: 18, metatile: 8 },
           { x: 39176, y: 10600, z: 18, metatile: 8 },
+        ]);
+      });
+
+      it('should add the id of the parent tile request to the tiles', async function () {
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+        const id = faker.datatype.uuid();
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            bbox: [{ west: 35.20076259970665, south: 31.770502933414285, east: 35.20134598016739, north: 31.77073210500818 }],
+            maxZoom: 18,
+            minZoom: 18,
+            source: 'api',
+          },
+          id,
+        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
+          },
         ]);
       });
     });
@@ -302,6 +348,33 @@ describe('tilesManager', () => {
           {
             name: 'tiles-test',
             data: { x: 39176, y: 10600, z: 18, metatile: 8 },
+          },
+        ]);
+      });
+
+      it('should add the id of the tile request to the tiles', async function () {
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+        const id = faker.datatype.uuid();
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            bbox: [{ west: 35.20076259970665, south: 31.770502933414285, east: 35.20134598016739, north: 31.77073210500818 }],
+            maxZoom: 18,
+            minZoom: 18,
+            source: 'expiredTiles',
+          },
+          id,
+        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
           },
         ]);
       });

@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles, Tile } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
@@ -49,7 +50,8 @@ export class TilesManager {
   }
 
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
-    const tileJobsArr = tiles.map((tile) => ({ name: this.tilesQueueName, data: tile }));
+    const id = uuidv4();
+    const tileJobsArr = tiles.map((tile) => ({ name: this.tilesQueueName, data: { ...tile, parent: id } }));
     await this.pgboss.insert(tileJobsArr);
   }
 
@@ -58,24 +60,25 @@ export class TilesManager {
   }
 
   public async handleTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
-    const data = job.data;
-    this.logger.info(`Handling tile request for ${data.bbox.length} bounding boxes with source ${data.source}`);
-    this.logger.debug(`request payload: ${JSON.stringify(data)}`);
+    this.logger.info(`Handling tile request for ${job.data.bbox.length} bounding boxes with source ${job.data.source}`);
+    this.logger.debug(`request payload: ${JSON.stringify(job.data)}`);
 
-    if (data.source === 'api') {
-      await this.handleApiTileRequest(data);
+    if (job.data.source === 'api') {
+      await this.handleApiTileRequest(job);
     } else {
-      await this.handleExpiredTileRequest(data);
+      await this.handleExpiredTileRequest(job);
     }
   }
 
-  private async handleExpiredTileRequest(payload: TileRequestQueuePayload): Promise<void> {
+  private async handleExpiredTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+    const { data, id } = job;
+
     const tileMap = new Map<string, PgBoss.JobInsert>();
-    for (const bbox of payload.bbox) {
-      for (let zoom = payload.minZoom; zoom <= payload.maxZoom; zoom++) {
+    for (const bbox of data.bbox) {
+      for (let zoom = data.minZoom; zoom <= data.maxZoom; zoom++) {
         const tilesGenerator = boundingBoxToTiles(bbox, zoom, this.metatile);
         for await (const tile of tilesGenerator) {
-          tileMap.set(stringifyTile(tile), { name: this.tilesQueueName, data: tile });
+          tileMap.set(stringifyTile(tile), { name: this.tilesQueueName, data: { ...tile, parent: id } });
           if (tileMap.size >= this.batchSize) {
             await this.pgboss.insert(Array.from(tileMap.values()));
             tileMap.clear();
@@ -88,13 +91,14 @@ export class TilesManager {
     }
   }
 
-  private async handleApiTileRequest(payload: TileRequestQueuePayload): Promise<void> {
+  private async handleApiTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+    const { data, id } = job;
     let tileArr: PgBoss.JobInsert[] = [];
-    for (const bbox of payload.bbox) {
-      for (let zoom = payload.minZoom; zoom <= payload.maxZoom; zoom++) {
+    for (const bbox of data.bbox) {
+      for (let zoom = data.minZoom; zoom <= data.maxZoom; zoom++) {
         const tilesGenerator = boundingBoxToTiles(bbox, zoom, this.metatile);
         for await (const tile of tilesGenerator) {
-          tileArr.push({ name: this.tilesQueueName, data: tile });
+          tileArr.push({ name: this.tilesQueueName, data: { ...tile, parent: id } });
           if (tileArr.length >= this.batchSize) {
             await this.pgboss.insert(tileArr);
             tileArr = [];
