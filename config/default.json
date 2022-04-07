@@ -44,6 +44,11 @@
       "key": "",
       "cert": ""
     },
-    "database": "postgres"
+    "database": "postgres",
+    "expireInSeconds": 120,
+    "retryBackoff": true,
+    "retryLimit": 3,
+    "retryDelay": 60,
+    "retentionHours": 87660
   }
 }

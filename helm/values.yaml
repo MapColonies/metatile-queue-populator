@@ -52,6 +52,11 @@ dbConfig:
   database: metatile-queue-populator
   schema: pgboss
   port: 5432
+  expireInSeconds: 120
+  retryBackoff: true
+  retryLimit: 3
+  retryDelay: 60
+  retentionHours: 87660
   sslAuth:
     enabled: false
     secretName: secret-name

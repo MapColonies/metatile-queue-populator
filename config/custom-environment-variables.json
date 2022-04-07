@@ -76,6 +76,26 @@
       "key": "DB_KEY_PATH",
       "cert": "DB_CERT_PATH"
     },
-    "database": "DB_NAME"
+    "database": "DB_NAME",
+    "expireInSeconds": {
+      "__name": "DB_JOBS_EXPIRE_IN_SECONDS",
+      "__format": "number"
+    },
+    "retryBackoff": {
+      "__name": "DB_JOBS_RETRY_BACKOFF",
+      "__format": "boolean"
+    },
+    "retryLimit": {
+      "__name": "DB_JOBS_RETRY_LIMIT",
+      "__format": "number"
+    },
+    "retryDelay": {
+      "__name": "DB_JOBS_RETRY_DELAY",
+      "__format": "number"
+    },
+    "retentionHours": {
+      "__name": "DB_JOBS_RETENTION_HOURS",
+      "__format": "number"
+    }
   }
 }
