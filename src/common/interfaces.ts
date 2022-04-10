@@ -11,9 +11,9 @@ export interface OpenApiConfig {
 }
 
 export interface QueueConfig {
-  expireInSeconds: number,
-  retryBackoff: boolean,
-  retryLimit: number,
-  retryDelaySeconds: number,
-  retentionHours: number
+  expireInSeconds: number;
+  retryBackoff: boolean;
+  retryLimit: number;
+  retryDelaySeconds: number;
+  retentionHours: number;
 }

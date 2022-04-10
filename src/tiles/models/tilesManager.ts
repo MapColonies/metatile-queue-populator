@@ -22,7 +22,7 @@ export class TilesManager {
   public constructor(
     private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: IConfig,
-    @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {
     const projectName = config.get<string>('app.projectName');
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME}-${projectName}`;
@@ -31,8 +31,8 @@ export class TilesManager {
     this.batchSize = config.get<number>('app.tilesBatchSize');
     this.metatile = config.get<number>('app.metatileSize');
 
-    const {retryDelaySeconds,...queueConfig} = config.get<QueueConfig>('queue');
-    this.baseQueueConfig = {retryDelay: retryDelaySeconds, ...queueConfig}
+    const { retryDelaySeconds, ...queueConfig } = config.get<QueueConfig>('queue');
+    this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
   }
 
   public async addBboxTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
@@ -54,7 +54,7 @@ export class TilesManager {
 
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
     const id = uuidv4();
-    const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id },  }));
+    const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } }));
     await this.pgboss.insert(tileJobsArr);
   }
 
