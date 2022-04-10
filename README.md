@@ -31,8 +31,8 @@ The queue name is: `tiles-${projectName}`
 - APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC
 - APP_TILES_BATCH_SIZE - how many tiles should be pushed into the queue at once
 - APP_METATILE_SIZE
-- DB_JOBS_EXPIRE_IN_SECONDS - How many seconds a job may be in active state before it is failed because of expiration. Must be >=1
-- DB_JOBS_RETRY_BACKOFF - Default: true. Enables exponential backoff retries based on retryDelay instead of a fixed delay. Sets initial retryDelay to 1 if not set.
-- DB_JOBS_RETRY_LIMIT - Max number of retries of failed jobs. Default is 3 retries.
-- DB_JOBS_RETRY_DELAY - Default: 60. Delay between retries of failed jobs, in seconds.
-- DB_JOBS_RETENTION_HOURS - How many hours a job may be in created or retry state before it's archived. Must be >=1
+- QUEUE_JOBS_EXPIRE_IN_SECONDS - How many seconds a job may be in active state before it is failed because of expiration. Must be >=1
+- QUEUE_JOBS_RETRY_BACKOFF - Default: true. Enables exponential backoff retries based on retryDelay instead of a fixed delay. Sets initial retryDelay to 1 if not set.
+- QUEUE_JOBS_RETRY_LIMIT - Default: 3. Max number of retries of failed jobs.
+- QUEUE_JOBS_RETRY_DELAY_SECONDS - Default: 60. Delay between retries of failed jobs, in seconds.
+- QUEUE_JOBS_RETENTION_HOURS - Default: 87660. How many hours a job may be in created or retry state before it's archived. Must be >=1

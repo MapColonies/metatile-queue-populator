@@ -24,11 +24,13 @@ data:
   DB_NAME: {{ .database }}
   DB_SCHEMA: {{ .schema }}
   DB_PORT: {{ .port | quote }}
-  DB_JOBS_EXPIRE_IN_SECONDS: {{ .expireInSeconds | quote }}
-  DB_JOBS_RETRY_BACKOFF: {{ .retryBackoff | quote }}
-  DB_JOBS_RETRY_LIMIT: {{ .retryLimit | quote }}
-  DB_JOBS_RETRY_DELAY: {{ .retryDelay | quote }}
-  DB_JOBS_RETENTION_HOURS: {{ .retentionHours | quote }}
+  {{- end -}}
+  {{- with .Values.queueConfig }}
+  QUEUE_JOBS_EXPIRE_IN_SECONDS: {{ .expireInSeconds | quote }}
+  QUEUE_JOBS_RETRY_BACKOFF: {{ .retryBackoff | quote }}
+  QUEUE_JOBS_RETRY_LIMIT: {{ .retryLimit | quote }}
+  QUEUE_JOBS_RETRY_DELAY_SECONDS: {{ .retryDelaySeconds | quote }}
+  QUEUE_JOBS_RETENTION_HOURS: {{ .retentionHours | quote }}
   {{- end -}}
   {{- if .Values.dbConfig.sslAuth.enabled }}
   DB_ENABLE_SSL_AUTH: "true"

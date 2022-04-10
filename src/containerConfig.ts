@@ -12,6 +12,7 @@ import { InjectionObject, registerDependencies } from './common/dependencyRegist
 import { DbConfig, pgBossFactory } from './common/pgbossFactory';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { TilesManager } from './tiles/models/tilesManager';
+import { QueueConfig } from './common/interfaces';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -24,8 +25,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
     // @ts-expect-error the signature is wrong
     const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
-
-    const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
+    const pgBoss = await pgBossFactory({...config.get<DbConfig>('db')});
     shutdownHandler.addFunction(pgBoss.stop.bind(pgBoss));
     pgBoss.on('error', logger.error.bind(logger));
     await pgBoss.start();

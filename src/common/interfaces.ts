@@ -9,3 +9,11 @@ export interface OpenApiConfig {
   jsonPath: string;
   uiPath: string;
 }
+
+export interface QueueConfig {
+  expireInSeconds: number,
+  retryBackoff: boolean,
+  retryLimit: number,
+  retryDelaySeconds: number,
+  retentionHours: number
+}
