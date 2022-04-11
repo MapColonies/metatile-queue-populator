@@ -21,6 +21,10 @@ describe('tilesManager', () => {
             return 10;
           case 'app.metatileSize':
             return 8;
+          case 'queue':
+            return {
+              retryDelaySeconds: 1,
+            };
           default:
             break;
         }
@@ -142,6 +146,7 @@ describe('tilesManager', () => {
           {
             name: 'tiles-test',
             data: { x: 39176, y: 10600, z: 18, metatile: 8 },
+            retryDelay: 1,
           },
         ]);
       });
@@ -231,6 +236,7 @@ describe('tilesManager', () => {
           {
             name: 'tiles-test',
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
+            retryDelay: 1,
           },
         ]);
       });
@@ -240,8 +246,10 @@ describe('tilesManager', () => {
       it('should insert the tile to the queue', async function () {
         const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
         const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+        const id = faker.datatype.uuid();
 
         const promise = tilesManager.handleTileRequest({
+          id,
           data: {
             bbox: [{ west: 35.20076259970665, south: 31.770502933414285, east: 35.20134598016739, north: 31.77073210500818 }],
             maxZoom: 18,
@@ -257,7 +265,8 @@ describe('tilesManager', () => {
         expect(args).toEqual([
           {
             name: 'tiles-test',
-            data: { x: 39176, y: 10600, z: 18, metatile: 8 },
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
+            retryDelay: 1,
           },
         ]);
       });
@@ -327,8 +336,10 @@ describe('tilesManager', () => {
       it('should not insert the same tile twice', async function () {
         const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
         const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger);
+        const id = faker.datatype.uuid();
 
         const promise = tilesManager.handleTileRequest({
+          id,
           data: {
             bbox: [
               { west: 35.20076259970665, south: 31.770502933414285, east: 35.20134598016739, north: 31.77073210500818 },
@@ -347,7 +358,8 @@ describe('tilesManager', () => {
         expect(args).toEqual([
           {
             name: 'tiles-test',
-            data: { x: 39176, y: 10600, z: 18, metatile: 8 },
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
+            retryDelay: 1,
           },
         ]);
       });
@@ -375,6 +387,7 @@ describe('tilesManager', () => {
           {
             name: 'tiles-test',
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
+            retryDelay: 1,
           },
         ]);
       });
