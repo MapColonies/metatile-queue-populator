@@ -45,6 +45,13 @@ env:
     enabled: false
     url: http://localhost:55681/v1/metrics
 
+queueConfig:
+  expireInSeconds: 600
+  retryBackoff: true
+  retryLimit: 3
+  retryDelaySeconds: 60
+  retentionHours: 87660
+
 dbConfig:
   host: localhost
   username: postgres

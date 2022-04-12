@@ -32,6 +32,13 @@
     "tilesBatchSize": 10000,
     "metatileSize": 8
   },
+  "queue": {
+    "expireInSeconds": 600,
+    "retryBackoff": true,
+    "retryLimit": 3,
+    "retryDelaySeconds": 60,
+    "retentionHours": 87660
+  },
   "db": {
     "host": "localhost",
     "port": 5432,

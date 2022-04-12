@@ -58,6 +58,28 @@
       "__format": "number"
     }
   },
+  "queue": {
+    "expireInSeconds": {
+      "__name": "QUEUE_JOBS_EXPIRE_IN_SECONDS",
+      "__format": "number"
+    },
+    "retryBackoff": {
+      "__name": "QUEUE_JOBS_RETRY_BACKOFF",
+      "__format": "boolean"
+    },
+    "retryLimit": {
+      "__name": "QUEUE_JOBS_RETRY_LIMIT",
+      "__format": "number"
+    },
+    "retryDelaySeconds": {
+      "__name": "QUEUE_JOBS_RETRY_DELAY_SECONDS",
+      "__format": "number"
+    },
+    "retentionHours": {
+      "__name": "QUEUE_JOBS_RETENTION_HOURS",
+      "__format": "number"
+    }
+  },
   "db": {
     "host": "DB_HOST",
     "port": {
