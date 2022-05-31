@@ -23,7 +23,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   try {
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
     // @ts-expect-error the signature is wrong
-    const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
+    const logger = jsLogger({ ...loggerConfig, hooks: { logMethod } });
+
     const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
     shutdownHandler.addFunction(pgBoss.stop.bind(pgBoss));
     pgBoss.on('error', logger.error.bind(logger));
