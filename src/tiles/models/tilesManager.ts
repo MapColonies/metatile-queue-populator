@@ -33,6 +33,12 @@ export class TilesManager {
 
     const { retryDelaySeconds, ...queueConfig } = config.get<QueueConfig>('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
+    this.logger.info({
+      msg: 'queue initialized',
+      requestQueueName: this.requestQueueName,
+      tilesQueueName: this.tilesQueueName,
+      ...this.baseQueueConfig,
+    });
   }
 
   public async addBboxTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
@@ -43,17 +49,24 @@ export class TilesManager {
       source: 'api',
     };
 
+    this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, payload });
+
     const hash = createHash('md5');
     hash.update(JSON.stringify(payload));
+    const key = hash.digest('hex');
 
-    const res = await this.pgboss.sendOnce(this.requestQueueName, payload, {}, hash.digest('hex'));
+    const res = await this.pgboss.sendOnce(this.requestQueueName, payload, {}, key);
     if (res === null) {
+      this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
       throw new RequestAlreadyInQueueError('Request already in queue');
     }
   }
 
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
     const id = uuidv4();
+
+    this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: id, count: tiles.length });
+
     const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } }));
     await this.pgboss.insert(tileJobsArr);
   }
@@ -63,8 +76,14 @@ export class TilesManager {
   }
 
   public async handleTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
-    this.logger.info(`Handling tile request for ${job.data.bbox.length} bounding boxes with source ${job.data.source}`);
-    this.logger.debug(`request payload: ${JSON.stringify(job.data)}`);
+    this.logger.info({
+      msg: 'handling tile request',
+      queueName: this.requestQueueName,
+      jobId: job.id,
+      bboxCount: job.data.bbox.length,
+      source: job.data.source,
+    });
+    this.logger.debug({ msg: 'handling the following tile request', queueName: this.requestQueueName, jobId: job.id, data: job.data });
 
     if (job.data.source === 'api') {
       await this.handleApiTileRequest(job);

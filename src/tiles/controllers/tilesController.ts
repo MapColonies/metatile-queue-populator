@@ -23,23 +23,25 @@ export class TilesController {
       validateBoundingBox(bbox);
     } catch (error) {
       (error as HttpError).status = httpStatus.BAD_REQUEST;
+      this.logger.error({ msg: 'validation failed', invalidParam: 'bbox', received: bbox, err: error });
       return next(error);
     }
 
-    if (req.body.minZoom > req.body.maxZoom) {
+    const { minZoom, maxZoom } = req.body;
+    if (minZoom > maxZoom) {
       const error = new Error('minZoom must be less than or equal to maxZoom');
       (error as HttpError).status = httpStatus.BAD_REQUEST;
+      this.logger.error({ msg: 'validation failed', invalidParam: ['minZoom', 'maxZoom'], received: { minZoom, maxZoom }, err: error });
       return next(error);
     }
 
     try {
-      await this.manager.addBboxTilesRequestToQueue(bbox, req.body.minZoom, req.body.maxZoom);
+      await this.manager.addBboxTilesRequestToQueue(bbox, minZoom, maxZoom);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
       if (error instanceof RequestAlreadyInQueueError) {
         (error as HttpError).status = httpStatus.CONFLICT;
       }
-
       next(error);
     }
   };
@@ -50,6 +52,7 @@ export class TilesController {
       tiles.forEach((tile) => validateTile(tile, TILEGRID_WORLD_CRS84));
     } catch (error) {
       (error as HttpError).status = httpStatus.BAD_REQUEST;
+      this.logger.error({ msg: 'validation failed', invalidParam: 'tiles', err: error });
       return next(error);
     }
 
