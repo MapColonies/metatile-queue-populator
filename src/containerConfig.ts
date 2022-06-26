@@ -1,5 +1,5 @@
 import config from 'config';
-import { logMethod } from '@map-colonies/telemetry';
+import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import { DependencyContainer } from 'tsyringe/dist/typings/types';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
@@ -22,15 +22,13 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   const shutdownHandler = new ShutdownHandler();
   try {
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-    // @ts-expect-error the signature is wrong
-    const logger = jsLogger({ ...loggerConfig, hooks: { logMethod } });
+    const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
 
     const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
     shutdownHandler.addFunction(pgBoss.stop.bind(pgBoss));
     pgBoss.on('error', logger.error.bind(logger));
     await pgBoss.start();
 
-    tracing.start();
     const tracer = trace.getTracer(SERVICE_NAME);
     shutdownHandler.addFunction(tracing.stop.bind(tracing));
 

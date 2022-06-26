@@ -1,6 +1,7 @@
 /* eslint-disable import/first */
 // this import must be called before the first import of tsyring
 import 'reflect-metadata';
+import './common/tracing';
 import { createServer } from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
