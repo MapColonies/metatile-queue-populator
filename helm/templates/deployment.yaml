@@ -23,6 +23,10 @@ spec:
       release: {{ $releaseName }}
       run: {{ $releaseName }}-{{ $chartName }}
       {{- include "metatile-queue-populator.selectorLabels" . | nindent 6 }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
   template:
     metadata:
       labels:
@@ -30,8 +34,11 @@ spec:
         release: {{ $releaseName }}
         run: {{ $releaseName }}-{{ $chartName }}
         {{- include "metatile-queue-populator.selectorLabels" . | nindent 8 }}
-      {{- if .Values.resetOnConfigChange }}
       annotations:
+{{- with .Values.podAnnotations }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      {{- if .Values.resetOnConfigChange }}
         checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       {{- end }}
     spec:

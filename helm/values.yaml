@@ -11,6 +11,9 @@ initialDelaySeconds: 60
 nodePort: 30030 #for minikube deployment only
 resetOnConfigChange: true
 
+annotations: {}
+podAnnotations: {}
+
 cloudProvider:
   dockerRegistryUrl: my-registry-url.io
   imagePullSecretName: 'my-registry-secret'
@@ -41,6 +44,7 @@ env:
   tracing:
     enabled: false
     url: http://localhost:55681/v1/trace
+    ratio: 1
   metrics:
     enabled: false
     url: http://localhost:55681/v1/metrics
