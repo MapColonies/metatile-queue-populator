@@ -8,6 +8,9 @@ export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
 export const HEALTHCHECK_SYMBOL = Symbol('healthcheck');
 
+export const METRICS_REGISTRY = Symbol('MetricsRegistry');
+export const METRICS_BUCKETS = Symbol('metrics_buckets');
+
 /* eslint-disable @typescript-eslint/naming-convention */
 export const SERVICES: Record<string, symbol> = {
   LOGGER: Symbol('Logger'),

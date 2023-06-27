@@ -7,9 +7,10 @@ import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
+import { Registry } from 'prom-client';
 import { bbox, FeatureCollection } from '@turf/turf';
 import { getApp } from '../../../src/app';
-import { SERVICES } from '../../../src/common/constants';
+import { METRICS_REGISTRY, SERVICES } from '../../../src/common/constants';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
 import { ShutdownHandler } from '../../../src/common/shutdownHandler';
@@ -20,6 +21,7 @@ describe('tiles', function () {
   describe('api', () => {
     let requestSender: TilesRequestSender;
     let container: DependencyContainer;
+
     beforeAll(async function () {
       const [app, depContainer] = await getApp({
         useChild: true,
@@ -29,10 +31,11 @@ describe('tiles', function () {
             provider: {
               useValue: {
                 get: (key: string) => {
-                  if (key === 'app.projectName') {
-                    return 'test-api';
-                  } else if (key === 'app.enableRequestQueueHandling') {
-                    return false;
+                  if (key === 'app') {
+                    return {
+                      projectName: 'app-api',
+                      enableRequestQueueHandling: false,
+                    };
                   } else {
                     return config.get(key);
                   }
@@ -307,12 +310,13 @@ describe('tiles', function () {
             provider: {
               useValue: {
                 get: (key: string) => {
-                  if (key === 'app.projectName') {
-                    return 'test-requests';
-                  } else if (key === 'app.enableRequestQueueHandling') {
-                    return true;
-                  } else if (key === 'app.tilesBatchSize') {
-                    return 10;
+                  if (key === 'app') {
+                    return {
+                      projectName: 'test-requests',
+                      tilesBatchSize: 10,
+                      metatileSize: 8,
+                      enableRequestQueueHandling: true,
+                    };
                   } else {
                     return config.get(key);
                   }
@@ -322,6 +326,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;

@@ -17,3 +17,11 @@ export interface QueueConfig {
   retryDelaySeconds: number;
   retentionHours: number;
 }
+
+export interface AppConfig {
+  projectName: string;
+  enableRequestQueueHandling: boolean;
+  requestQueueCheckIntervalSec: number;
+  tilesBatchSize: number;
+  metatileSize: number;
+}

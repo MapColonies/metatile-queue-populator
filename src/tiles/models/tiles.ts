@@ -12,11 +12,13 @@ export interface TilesByAreaRequest<A = BBox | Feature | FeatureCollection> exte
   area: A;
 }
 
+export type Source = 'api' | 'expiredTiles';
+
 export interface TileRequestQueuePayloadItem<A = BoundingBox | Feature> extends BaseTilesRequest {
   area: A;
 }
 
 export interface TileRequestQueuePayload<A = BoundingBox | Feature> {
   items: TileRequestQueuePayloadItem<A>[];
-  source: 'api' | 'expiredTiles';
+  source: Source;
 }

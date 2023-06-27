@@ -4,14 +4,16 @@ import { trace } from '@opentelemetry/api';
 import { DependencyContainer } from 'tsyringe/dist/typings/types';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
-import { instanceCachingFactory } from 'tsyringe';
-import { HEALTHCHECK_SYMBOL, SERVICES, SERVICE_NAME } from './common/constants';
+import { instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
+import client from 'prom-client';
+import { HEALTHCHECK_SYMBOL, METRICS_REGISTRY, SERVICES, SERVICE_NAME } from './common/constants';
 import { tracing } from './common/tracing';
 import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { DbConfig, pgBossFactory } from './common/pgbossFactory';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { TilesManager } from './tiles/models/tilesManager';
+import { AppConfig, IConfig } from './common/interfaces';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -37,6 +39,21 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      {
+        token: METRICS_REGISTRY,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            const appConfig = config.get<AppConfig>('app');
+
+            client.register.setDefaultLabels({
+              project: appConfig.projectName,
+              metatileSize: appConfig.metatileSize,
+            });
+            return client.register;
+          }),
+        },
+      },
       { token: PgBoss, provider: { useValue: pgBoss } },
       {
         token: HEALTHCHECK_SYMBOL,

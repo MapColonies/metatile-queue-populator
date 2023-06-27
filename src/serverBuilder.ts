@@ -1,14 +1,15 @@
 import express, { Router } from 'express';
 import bodyParser from 'body-parser';
 import compression from 'compression';
+import { Registry } from 'prom-client';
 import { OpenapiViewerRouter, OpenapiRouterConfig } from '@map-colonies/openapi-express-viewer';
 import { getErrorHandlerMiddleware } from '@map-colonies/error-express-handler';
 import { middleware as OpenApiMiddleware } from 'express-openapi-validator';
-import { defaultMetricsMiddleware } from '@map-colonies/telemetry';
+import { metricsMiddleware } from '@map-colonies/telemetry';
 import { inject, injectable } from 'tsyringe';
 import { Logger } from '@map-colonies/js-logger';
 import httpLogger from '@map-colonies/express-access-log-middleware';
-import { SERVICES } from './common/constants';
+import { METRICS_REGISTRY, SERVICES } from './common/constants';
 import { IConfig } from './common/interfaces';
 import { TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 
@@ -19,7 +20,8 @@ export class ServerBuilder {
   public constructor(
     @inject(SERVICES.CONFIG) private readonly config: IConfig,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(TILES_ROUTER_SYMBOL) private readonly tilesRouter: Router
+    @inject(TILES_ROUTER_SYMBOL) private readonly tilesRouter: Router,
+    @inject(METRICS_REGISTRY) private readonly metricsRegistry: Registry
   ) {
     this.serverInstance = express();
   }
@@ -44,7 +46,7 @@ export class ServerBuilder {
   }
 
   private registerPreRoutesMiddleware(): void {
-    this.serverInstance.use('/metrics', defaultMetricsMiddleware());
+    this.serverInstance.use('/metrics', metricsMiddleware(this.metricsRegistry));
 
     this.serverInstance.use(httpLogger({ logger: this.logger }));
 

@@ -195,23 +195,6 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/Point3D'
-    GeometryCollection:
-      type: object
-      description: Geojson geometry collection
-      required:
-        - type
-        - geometries
-      externalDocs:
-        url: http://geojson.org/geojson-spec.html#geometrycollection
-      properties:
-        type:
-          type: string
-          enum:
-            - GeometryCollection
-        geometries:
-          type: array
-          items:
-            $ref: '#/components/schemas/Geometry'
     Feature:
       type: object
       description: Geojson Feature

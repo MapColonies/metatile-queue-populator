@@ -10,14 +10,14 @@ import { RequestAlreadyInQueueError, RequestValidationError } from '../models/er
 import { TilesByAreaRequest } from '../models/tiles';
 import { TilesManager } from '../models/tilesManager';
 
-type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesByAreaRequest | TilesByAreaRequest[]>;
+type PostTilesByAreaHandler = RequestHandler<undefined, { message: string }, TilesByAreaRequest | TilesByAreaRequest[]>;
 type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[]>;
 
 @injectable()
 export class TilesController {
   public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly manager: TilesManager) {}
 
-  public postTilesByArea: PostTilesByBboxHandler = async (req, res, next) => {
+  public postTilesByArea: PostTilesByAreaHandler = async (req, res, next) => {
     const arealRequest = Array.isArray(req.body) ? req.body : [req.body];
 
     try {
