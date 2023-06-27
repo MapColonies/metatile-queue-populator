@@ -30,17 +30,20 @@ paths:
           $ref: '#/components/responses/BadRequest'
         5XX:
           $ref: '#/components/responses/UnexpectedError'
-  /tiles/bbox:
+  /tiles/area:
     post:
-      operationId: postTilesByBbox
+      operationId: postTilesByArea
       summary: >-
-        add the all the meta tiles in the given bbox and zoom range into the
-        queue
+        add the all the meta tiles in the given area and zoom range into the
+        queue, area is a geojson or bbox
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BboxTilesRequest'
+              oneOf:
+                - $ref: '#/components/schemas/BboxTilesRequest'
+                - $ref: '#/components/schemas/GeometryTilesRequest'
+                - $ref: '#/components/schemas/MultiAreaTilesRequest'
       responses:
         '200':
           description: OK
@@ -85,6 +88,164 @@ components:
       properties:
         message:
           type: string
+    Geometry:
+      type: object
+      description: Geojson geometry
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#geometry-objects
+      properties:
+        type:
+          type: string
+          enum:
+            - Point
+            - LineString
+            - Polygon
+            - MultiPoint
+            - MultiLineString
+            - MultiPolygon
+          description: the geometry type
+    Point3D:
+      type: array
+      description: Point in 3D space
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id2
+      minItems: 2
+      maxItems: 3
+      items:
+        type: number
+    Point:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id2
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              $ref: '#/components/schemas/Point3D'
+    LineString:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id3
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point3D'
+    Polygon:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id4
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Point3D'
+    MultiPoint:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id5
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point3D'
+    MultiLineString:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id6
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Point3D'
+    MultiPolygon:
+      type: object
+      description: Geojson geometry
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#id6
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - properties:
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Point3D'
+    GeometryCollection:
+      type: object
+      description: Geojson geometry collection
+      required:
+        - type
+        - geometries
+      externalDocs:
+        url: http://geojson.org/geojson-spec.html#geometrycollection
+      properties:
+        type:
+          type: string
+          enum:
+            - GeometryCollection
+        geometries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Geometry'
+    Feature:
+      type: object
+      description: Geojson Feature
+      required:
+        - type
+        - geometry
+      externalDocs:
+        url: https://tools.ietf.org/html/rfc7946#section-3.2
+      properties:
+        type:
+          type: string
+          enum:
+            - Feature
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          type: object
+    FeatureCollection:
+      type: object
+      description: Geojson Feature collection
+      required:
+        - type
+        - features
+      externalDocs:
+        url: https://tools.ietf.org/html/rfc7946#section-3.3
+      properties:
+        type:
+          type: string
+          enum:
+            - FeatureCollection
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
     TilesListRequest:
       type: array
       minItems: 1
@@ -104,25 +265,12 @@ components:
           metatile:
             type: integer
             default: 1
-    BboxTilesRequest:
+    BaseAreaRequest:
       type: object
       required:
-        - bbox
         - minZoom
         - maxZoom
       properties:
-        bbox:
-          type: array
-          description: WGS84 bbox
-          items:
-            type: number
-          minItems: 4
-          maxItems: 4
-          example:
-            - -90
-            - -90
-            - 90
-            - 90
         minZoom:
           type: integer
           minimum: 0
@@ -135,3 +283,40 @@ components:
           description: >-
             The maximum zoom for which metatiles will be calculated. note - the
             value should be higher or equal than minZoom
+    BboxTilesRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseAreaRequest'
+        - type: object
+          required:
+            - area
+          properties:
+            area:
+              type: array
+              description: WGS84 bbox
+              items:
+                type: number
+              minItems: 4
+              maxItems: 4
+              example:
+                - -90
+                - -90
+                - 90
+                - 90
+    GeometryTilesRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseAreaRequest'
+        - type: object
+          required:
+            - area
+          properties:
+            area:
+              oneOf:
+                - $ref: '#/components/schemas/Feature'
+                - $ref: '#/components/schemas/FeatureCollection'
+    MultiAreaTilesRequest:
+      type: array
+      minItems: 1
+      items:
+        anyOf:
+          - $ref: '#/components/schemas/BboxTilesRequest'
+          - $ref: '#/components/schemas/GeometryTilesRequest'

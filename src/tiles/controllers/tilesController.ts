@@ -1,44 +1,33 @@
 import { Logger } from '@map-colonies/js-logger';
-import { BoundingBox, Tile, validateBoundingBox, validateTile, TILEGRID_WORLD_CRS84 } from '@map-colonies/tile-calc';
+import { Tile, validateBoundingBox, validateTile, TILEGRID_WORLD_CRS84 } from '@map-colonies/tile-calc';
+import geojsonValidator from '@turf/boolean-valid';
 import { RequestHandler } from 'express';
 import { HttpError } from 'express-openapi-validator/dist/framework/types';
 import httpStatus from 'http-status-codes';
 import { injectable, inject } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
-import { RequestAlreadyInQueueError } from '../models/errors';
-import { TilesByBboxRequest } from '../models/tiles';
+import { RequestAlreadyInQueueError, RequestValidationError } from '../models/errors';
+import { TilesByAreaRequest } from '../models/tiles';
 import { TilesManager } from '../models/tilesManager';
 
-type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesByBboxRequest>;
+type PostTilesByBboxHandler = RequestHandler<undefined, { message: string }, TilesByAreaRequest | TilesByAreaRequest[]>;
 type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[]>;
 
 @injectable()
 export class TilesController {
   public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly manager: TilesManager) {}
 
-  public postTilesByBbox: PostTilesByBboxHandler = async (req, res, next) => {
-    const [west, south, east, north] = req.body.bbox;
-    const bbox: BoundingBox = { west, south, east, north };
-    try {
-      validateBoundingBox(bbox);
-    } catch (error) {
-      (error as HttpError).status = httpStatus.BAD_REQUEST;
-      this.logger.error({ msg: 'validation failed', invalidParam: 'bbox', received: bbox, err: error });
-      return next(error);
-    }
-
-    const { minZoom, maxZoom } = req.body;
-    if (minZoom > maxZoom) {
-      const error = new Error('minZoom must be less than or equal to maxZoom');
-      (error as HttpError).status = httpStatus.BAD_REQUEST;
-      this.logger.error({ msg: 'validation failed', invalidParam: ['minZoom', 'maxZoom'], received: { minZoom, maxZoom }, err: error });
-      return next(error);
-    }
+  public postTilesByArea: PostTilesByBboxHandler = async (req, res, next) => {
+    const arealRequest = Array.isArray(req.body) ? req.body : [req.body];
 
     try {
-      await this.manager.addBboxTilesRequestToQueue(bbox, minZoom, maxZoom);
+      this.validateRequest(arealRequest);
+      await this.manager.addArealTilesRequestToQueue(arealRequest);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
+      if (error instanceof RequestValidationError) {
+        (error as HttpError).status = httpStatus.BAD_REQUEST;
+      }
       if (error instanceof RequestAlreadyInQueueError) {
         (error as HttpError).status = httpStatus.CONFLICT;
       }
@@ -63,4 +52,35 @@ export class TilesController {
       next(error);
     }
   };
+
+  private validateRequest(request: TilesByAreaRequest[]): void {
+    for (const { area, minZoom, maxZoom } of request) {
+      if (minZoom > maxZoom) {
+        const error = new RequestValidationError('minZoom must be less than or equal to maxZoom');
+        this.logger.error({ msg: 'validation failed', invalidParam: ['minZoom', 'maxZoom'], received: { minZoom, maxZoom }, err: error });
+        throw error;
+      }
+
+      if (Array.isArray(area)) {
+        try {
+          const [west, south, east, north] = area;
+          validateBoundingBox({ west, south, east, north });
+          continue;
+        } catch (error) {
+          this.logger.error({ msg: 'validation failed', invalidParam: 'area', received: area, err: error });
+          throw new RequestValidationError((error as Error).message);
+        }
+      }
+
+      const geojsons = area.type === 'FeatureCollection' ? area.features : [area];
+
+      for (const geojson of geojsons) {
+        if (!geojsonValidator(geojson)) {
+          const error = new RequestValidationError('area is an invalid geojson');
+          this.logger.error({ msg: 'validation failed', invalidParam: 'area', received: area, err: error });
+          throw error;
+        }
+      }
+    }
+  }
 }

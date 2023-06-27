@@ -1,15 +1,17 @@
-import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { Logger } from '@map-colonies/js-logger';
-import { BoundingBox, boundingBoxToTiles, Tile } from '@map-colonies/tile-calc';
+import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import { inject, Lifecycle, scoped } from 'tsyringe';
+import booleanIntersects from '@turf/boolean-intersects';
+import { Feature } from '@turf/turf';
 import { SERVICES } from '../../common/constants';
 import { IConfig, QueueConfig } from '../../common/interfaces';
-import { TileRequestQueuePayload } from './tiles';
+import { hashValue } from '../../common/util';
+import { TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME, TILES_QUEUE_NAME } from './constants';
-import { stringifyTile } from './util';
+import { areaToBoundingBox, boundingBoxToPolygon, stringifyTile } from './util';
 
 @scoped(Lifecycle.ContainerScoped)
 export class TilesManager {
@@ -41,21 +43,29 @@ export class TilesManager {
     });
   }
 
-  public async addBboxTilesRequestToQueue(bbox: BoundingBox, minZoom: number, maxZoom: number): Promise<void> {
+  public async addArealTilesRequestToQueue(request: TilesByAreaRequest[]): Promise<void> {
     const payload: TileRequestQueuePayload = {
-      bbox: [bbox],
-      minZoom,
-      maxZoom,
+      items: request.flatMap((item) => {
+        if (Array.isArray(item.area)) {
+          const [west, south, east, north] = item.area;
+          return { ...item, area: { west, south, east, north } };
+        }
+
+        if (item.area.type === 'FeatureCollection') {
+          return item.area.features.map((feature) => ({ ...item, area: feature }));
+        }
+
+        return { ...item, area: item.area };
+      }),
       source: 'api',
     };
 
-    this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, payload });
+    const key = hashValue(payload);
 
-    const hash = createHash('md5');
-    hash.update(JSON.stringify(payload));
-    const key = hash.digest('hex');
+    this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
     const res = await this.pgboss.sendOnce(this.requestQueueName, payload, {}, key);
+
     if (res === null) {
       this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
       throw new RequestAlreadyInQueueError('Request already in queue');
@@ -65,7 +75,7 @@ export class TilesManager {
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
     const id = uuidv4();
 
-    this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: id, count: tiles.length });
+    this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: id, itemCount: tiles.length });
 
     const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } }));
     await this.pgboss.insert(tileJobsArr);
@@ -80,25 +90,56 @@ export class TilesManager {
       msg: 'handling tile request',
       queueName: this.requestQueueName,
       jobId: job.id,
-      bboxCount: job.data.bbox.length,
+      itemCount: job.data.items.length,
       source: job.data.source,
     });
+
     this.logger.debug({ msg: 'handling the following tile request', queueName: this.requestQueueName, jobId: job.id, data: job.data });
 
     if (job.data.source === 'api') {
       await this.handleApiTileRequest(job);
     } else {
-      await this.handleExpiredTileRequest(job);
+      await this.handleExpiredTileRequest(job as PgBoss.JobWithDoneCallback<TileRequestQueuePayload<BoundingBox>, void>);
     }
   }
 
-  private async handleExpiredTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+  private async handleApiTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
     const { data, id } = job;
+    let tileArr: PgBoss.JobInsert[] = [];
 
+    for (const { area, minZoom, maxZoom } of data.items) {
+      const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
+
+      for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
+        for await (const tile of boundingBoxToTilesGenerator(itemBBox, zoom, this.metatile)) {
+          if (fromGeojson) {
+            const tileBbox = tileToBoundingBox(tile);
+            if (!booleanIntersects(boundingBoxToPolygon(tileBbox), area as Feature)) {
+              continue;
+            }
+          }
+
+          tileArr.push({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } });
+          if (tileArr.length >= this.batchSize) {
+            await this.pgboss.insert(tileArr);
+            tileArr = [];
+          }
+        }
+      }
+    }
+
+    if (tileArr.length > 0) {
+      await this.pgboss.insert(tileArr);
+    }
+  }
+
+  private async handleExpiredTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload<BoundingBox>, void>): Promise<void> {
+    const { data, id } = job;
     const tileMap = new Map<string, PgBoss.JobInsert>();
-    for (const bbox of data.bbox) {
-      for (let zoom = data.minZoom; zoom <= data.maxZoom; zoom++) {
-        const tilesGenerator = boundingBoxToTiles(bbox, zoom, this.metatile);
+
+    for (const { area, minZoom, maxZoom } of data.items) {
+      for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
+        const tilesGenerator = boundingBoxToTilesGenerator(area, zoom, this.metatile);
         for await (const tile of tilesGenerator) {
           tileMap.set(stringifyTile(tile), { ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } });
           if (tileMap.size >= this.batchSize) {
@@ -108,28 +149,9 @@ export class TilesManager {
         }
       }
     }
+
     if (tileMap.size > 0) {
       await this.pgboss.insert(Array.from(tileMap.values()));
-    }
-  }
-
-  private async handleApiTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
-    const { data, id } = job;
-    let tileArr: PgBoss.JobInsert[] = [];
-    for (const bbox of data.bbox) {
-      for (let zoom = data.minZoom; zoom <= data.maxZoom; zoom++) {
-        const tilesGenerator = boundingBoxToTiles(bbox, zoom, this.metatile);
-        for await (const tile of tilesGenerator) {
-          tileArr.push({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } });
-          if (tileArr.length >= this.batchSize) {
-            await this.pgboss.insert(tileArr);
-            tileArr = [];
-          }
-        }
-      }
-    }
-    if (tileArr.length > 0) {
-      await this.pgboss.insert(tileArr);
     }
   }
 }
