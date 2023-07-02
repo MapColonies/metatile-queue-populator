@@ -20,7 +20,7 @@ async function getApp(registerOptions?: RegisterOptions): Promise<[Application, 
 
     const workerId = await pgBoss.work(
       tilesManager.requestQueueName,
-      { newJobCheckIntervalSeconds: config.get('app.requestQueueCheckIntervalSec') },
+      { newJobCheckIntervalSeconds: config.get('app.requestQueueCheckIntervalSec'), includeMetadata: true },
       tilesManager.handleTileRequest.bind(tilesManager)
     );
     cleanupRegistry.register({ func: async () => pgBoss.offWork(workerId) });

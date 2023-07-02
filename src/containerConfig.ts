@@ -49,11 +49,14 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
             const config = container.resolve<IConfig>(SERVICES.CONFIG);
             const appConfig = config.get<AppConfig>('app');
 
-            client.register.setDefaultLabels({
-              project: appConfig.projectName,
-              metatileSize: appConfig.metatileSize,
-            });
-            return client.register;
+            if (config.get<boolean>('telemetry.metrics.enabled')) {
+              client.register.setDefaultLabels({
+                project: appConfig.projectName,
+                metatileSize: appConfig.metatileSize,
+                handlingRequestQueue: appConfig.enableRequestQueueHandling,
+              });
+              return client.register;
+            }
           }),
         },
       },

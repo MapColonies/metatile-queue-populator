@@ -13,6 +13,7 @@ import { boundingBoxToPolygon } from '../../../../src/tiles/models/util';
 import { hashValue } from '../../../../src/common/util';
 
 const logger = jsLogger({ enabled: false });
+const queueConfig = { retryDelay: 1 };
 
 describe('tilesManager', () => {
   let configMock: jest.Mocked<IConfig>;
@@ -29,10 +30,10 @@ describe('tilesManager', () => {
             };
           case 'telemetry.metrics.buckets':
             return [];
-          case 'queue':
-            return {
-              retryDelaySeconds: 1,
-            };
+          case 'queue': {
+            const { retryDelay } = queueConfig;
+            return { retryDelaySeconds: retryDelay, ...queueConfig };
+          }
           default:
             break;
         }
@@ -54,7 +55,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {}, hashValue(expectedPayload));
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
     });
 
     it('resolve without error if request is a valid geojson', async function () {
@@ -66,7 +67,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {}, hashValue(expectedPayload));
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
     });
 
     it('resolve without error if request is a mix of valid bbox and geojson', async function () {
@@ -87,7 +88,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {}, hashValue(expectedPayload));
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
     });
 
     it('resolve without error if request is a mix of valid bbox and feature geojson, bbox and featureCollection geojson', async function () {
@@ -115,7 +116,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {}, hashValue(expectedPayload));
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
     });
 
     it('should throw RequestAlreadyInQueueError if the request is the same', async function () {
@@ -217,7 +218,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -252,7 +253,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(2);
@@ -296,7 +297,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -326,7 +327,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -354,7 +355,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -382,7 +383,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(2);
@@ -424,7 +425,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(2);
@@ -468,7 +469,7 @@ describe('tilesManager', () => {
             source: 'api',
           },
           id,
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -500,7 +501,7 @@ describe('tilesManager', () => {
             source: 'api',
           },
           id,
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -533,7 +534,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(geojsonPromise).resolves.not.toThrow();
         const geojsonInsertions = insertMock.mock.calls.length;
@@ -549,7 +550,7 @@ describe('tilesManager', () => {
             ],
             source: 'api',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(bboxPromise).resolves.not.toThrow();
 
@@ -577,7 +578,7 @@ describe('tilesManager', () => {
             ],
             source: 'expiredTiles',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -607,7 +608,7 @@ describe('tilesManager', () => {
             ],
             source: 'expiredTiles',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -635,7 +636,7 @@ describe('tilesManager', () => {
             ],
             source: 'expiredTiles',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(2);
@@ -684,7 +685,7 @@ describe('tilesManager', () => {
             ],
             source: 'expiredTiles',
           },
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);
@@ -716,7 +717,7 @@ describe('tilesManager', () => {
             source: 'expiredTiles',
           },
           id,
-        } as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>);
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
 
         await expect(promise).resolves.not.toThrow();
         expect(insertMock).toHaveBeenCalledTimes(1);

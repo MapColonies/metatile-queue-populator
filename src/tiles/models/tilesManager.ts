@@ -20,9 +20,10 @@ export class TilesManager {
   public readonly requestQueueName: string;
   public readonly tilesQueueName: string;
 
-  private readonly metatilesPopulatedCounter: client.Counter<'source' | 'z'>;
-  private readonly requestsHandledCounter: client.Counter<'source'>;
-  private readonly populateHistogram: client.Histogram<'source'>;
+  private readonly metatilesPopulatedCounter?: client.Counter<'source' | 'z'>;
+  private readonly requestsHandledCounter?: client.Counter<'source' | 'retrycount'>;
+  private readonly requestBatchesHandledCounter?: client.Counter<'source'>;
+  private readonly populateHistogram?: client.Histogram<'source'>;
 
   private readonly batchSize: number;
   private readonly metatile: number;
@@ -32,7 +33,7 @@ export class TilesManager {
     private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: IConfig,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(SERVICES.METRICS_REGISTRY) registry: client.Registry
+    @inject(SERVICES.METRICS_REGISTRY) registry?: client.Registry
   ) {
     const appConfig = config.get<AppConfig>('app');
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
@@ -50,44 +51,53 @@ export class TilesManager {
       ...this.baseQueueConfig,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    [
-      { type: snakeCase(TILE_REQUEST_QUEUE_NAME_PREFIX), name: this.requestQueueName },
-      { type: snakeCase(TILES_QUEUE_NAME_PREFIX), name: this.tilesQueueName },
-    ].forEach((queue) => {
-      new client.Gauge({
-        name: `metatile_queue_populator_${queue.type}_queue_current_count`,
-        help: `The number of jobs currently in the ${queue.type} queue`,
-        async collect(): Promise<void> {
-          const currentQueueSize = await self.pgboss.getQueueSize(queue.name);
-          this.set(currentQueueSize);
-        },
+    if (registry !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const self = this;
+      [
+        { type: snakeCase(TILE_REQUEST_QUEUE_NAME_PREFIX), name: this.requestQueueName },
+        { type: snakeCase(TILES_QUEUE_NAME_PREFIX), name: this.tilesQueueName },
+      ].forEach((queue) => {
+        new client.Gauge({
+          name: `metatile_queue_populator_${queue.type}_queue_current_count`,
+          help: `The number of jobs currently in the ${queue.type} queue`,
+          async collect(): Promise<void> {
+            const currentQueueSize = await self.pgboss.getQueueSize(queue.name);
+            this.set(currentQueueSize);
+          },
+          registers: [registry],
+        });
+      });
+
+      this.metatilesPopulatedCounter = new client.Counter({
+        name: 'metatile_queue_populator_metatiles_populated',
+        help: 'The total number of tiles populated',
+        labelNames: ['source', 'z'] as const,
         registers: [registry],
       });
-    });
 
-    this.metatilesPopulatedCounter = new client.Counter({
-      name: 'metatile_queue_populator_metatiles_populated',
-      help: 'The total number of tiles populated',
-      labelNames: ['source', 'z'] as const,
-      registers: [registry],
-    });
+      this.requestsHandledCounter = new client.Counter({
+        name: 'metatile_queue_populator_populate_requests_handled',
+        help: 'The total number of populate requests handled',
+        labelNames: ['source', 'retrycount'] as const,
+        registers: [registry],
+      });
 
-    this.requestsHandledCounter = new client.Counter({
-      name: 'metatile_queue_populator_populate_requests_handled',
-      help: 'The total number of populate requests handled',
-      labelNames: ['source'] as const,
-      registers: [registry],
-    });
+      this.requestBatchesHandledCounter = new client.Counter({
+        name: 'metatile_queue_populator_request_batches_handled',
+        help: 'The total number of request batches handled',
+        labelNames: ['source'] as const,
+        registers: [registry],
+      });
 
-    this.populateHistogram = new client.Histogram({
-      name: 'metatile_queue_populator_population_seconds',
-      help: 'metatile-queue-populator population duration by source',
-      buckets: config.get<number[]>('telemetry.metrics.buckets'),
-      labelNames: ['source'] as const,
-      registers: [registry],
-    });
+      this.populateHistogram = new client.Histogram({
+        name: 'metatile_queue_populator_population_seconds',
+        help: 'metatile-queue-populator population duration by source',
+        buckets: config.get<number[]>('telemetry.metrics.buckets'),
+        labelNames: ['source'] as const,
+        registers: [registry],
+      });
+    }
   }
 
   public async addArealTilesRequestToQueue(request: TilesByAreaRequest[]): Promise<void> {
@@ -111,7 +121,12 @@ export class TilesManager {
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
-    const res = await this.pgboss.sendOnce(this.requestQueueName, payload, {}, key);
+    const res = await this.pgboss.sendOnce(
+      this.requestQueueName,
+      payload,
+      { retryLimit: this.baseQueueConfig.retryLimit, retryDelay: this.baseQueueConfig.retryDelay },
+      key
+    );
 
     if (res === null) {
       this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
@@ -132,30 +147,35 @@ export class TilesManager {
     await this.pgboss.getQueueSize(this.requestQueueName);
   }
 
-  public async handleTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+  public async handleTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
     this.logger.info({
       msg: 'handling tile request',
       queueName: this.requestQueueName,
       jobId: job.id,
       itemCount: job.data.items.length,
       source: job.data.source,
+      retryCount: job.retrycount,
+      retryLimit: this.baseQueueConfig.retryLimit,
     });
 
-    this.logger.debug({ msg: 'handling the following tile request', queueName: this.requestQueueName, jobId: job.id, data: job.data });
+    this.logger.debug({ msg: 'handling the following tile request', queueName: this.requestQueueName, jobId: job.id, job });
 
-    const fetchTimerEnd = this.populateHistogram.startTimer({ source: job.data.source });
+    const fetchTimerEnd = this.populateHistogram?.startTimer({ source: job.data.source });
 
     if (job.data.source === 'api') {
       await this.handleApiTileRequest(job);
     } else {
-      await this.handleExpiredTileRequest(job as PgBoss.JobWithDoneCallback<TileRequestQueuePayload<BoundingBox>, void>);
+      await this.handleExpiredTileRequest(job as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload<BoundingBox>, void>);
     }
 
-    fetchTimerEnd();
-    this.requestsHandledCounter.inc({ source: job.data.source });
+    if (fetchTimerEnd) {
+      fetchTimerEnd();
+    }
+
+    this.requestsHandledCounter?.inc({ source: job.data.source, retrycount: job.retrycount });
   }
 
-  private async handleApiTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+  private async handleApiTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
     const { data, id } = job;
     let tileArr: PgBoss.JobInsert<Tile & { parent: string }>[] = [];
 
@@ -185,7 +205,7 @@ export class TilesManager {
     }
   }
 
-  private async handleExpiredTileRequest(job: PgBoss.JobWithDoneCallback<TileRequestQueuePayload<BoundingBox>, void>): Promise<void> {
+  private async handleExpiredTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload<BoundingBox>, void>): Promise<void> {
     const { data, id } = job;
     const tileMap = new Map<string, PgBoss.JobInsert<Tile & { parent: string }>>();
 
@@ -208,7 +228,11 @@ export class TilesManager {
   }
 
   private async populateTilesQueue(tiles: PgBoss.JobInsert<Tile & { parent: string }>[], source: Source): Promise<void> {
+    this.logger.info({ msg: 'populating tiles queue', queueName: this.tilesQueueName, itemCount: tiles.length, source });
+
     await this.pgboss.insert(tiles);
-    tiles.forEach((tile) => this.metatilesPopulatedCounter.inc({ source, z: tile.data?.z }));
+
+    tiles.forEach((tile) => this.metatilesPopulatedCounter?.inc({ source, z: tile.data?.z }));
+    this.requestBatchesHandledCounter?.inc({ source });
   }
 }

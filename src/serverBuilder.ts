@@ -21,7 +21,7 @@ export class ServerBuilder {
     @inject(SERVICES.CONFIG) private readonly config: IConfig,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(TILES_ROUTER_SYMBOL) private readonly tilesRouter: Router,
-    @inject(SERVICES.METRICS_REGISTRY) private readonly metricsRegistry: Registry
+    @inject(SERVICES.METRICS_REGISTRY) private readonly metricsRegistry?: Registry
   ) {
     this.serverInstance = express();
   }
@@ -46,7 +46,9 @@ export class ServerBuilder {
   }
 
   private registerPreRoutesMiddleware(): void {
-    this.serverInstance.use('/metrics', metricsMiddleware(this.metricsRegistry));
+    if (this.metricsRegistry) {
+      this.serverInstance.use('/metrics', metricsMiddleware(this.metricsRegistry));
+    }
 
     this.serverInstance.use(httpLogger({ logger: this.logger }));
 
