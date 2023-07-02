@@ -3,6 +3,7 @@ import { setTimeout as setTimeoutPromise } from 'timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import config from 'config';
 import { trace } from '@opentelemetry/api';
+import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
@@ -10,10 +11,9 @@ import { Tile } from '@map-colonies/tile-calc';
 import { Registry } from 'prom-client';
 import { bbox, FeatureCollection } from '@turf/turf';
 import { getApp } from '../../../src/app';
-import { METRICS_REGISTRY, SERVICES } from '../../../src/common/constants';
+import { SERVICES } from '../../../src/common/constants';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
-import { ShutdownHandler } from '../../../src/common/shutdownHandler';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
 
@@ -49,6 +49,11 @@ describe('tiles', function () {
       });
       container = depContainer;
       requestSender = new TilesRequestSender(app);
+    });
+
+    afterAll(async function () {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
     });
 
     describe('Happy Path', function () {
@@ -326,7 +331,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
+          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
@@ -338,8 +343,8 @@ describe('tiles', function () {
     });
 
     afterAll(async function () {
-      const handler = container.resolve(ShutdownHandler);
-      await handler.shutdown();
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue', async () => {

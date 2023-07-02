@@ -16,6 +16,7 @@ const logger = jsLogger({ enabled: false });
 
 describe('tilesManager', () => {
   let configMock: jest.Mocked<IConfig>;
+
   beforeAll(() => {
     configMock = {
       get: jest.fn().mockImplementation((key: string) => {

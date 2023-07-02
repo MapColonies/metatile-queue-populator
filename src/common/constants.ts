@@ -7,9 +7,7 @@ export const IGNORED_OUTGOING_TRACE_ROUTES = [/^.*\/v1\/metrics.*$/];
 export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
 export const HEALTHCHECK_SYMBOL = Symbol('healthcheck');
-
-export const METRICS_REGISTRY = Symbol('MetricsRegistry');
-export const METRICS_BUCKETS = Symbol('metrics_buckets');
+export const ON_SIGNAL = Symbol('onSignal');
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export const SERVICES: Record<string, symbol> = {
@@ -17,5 +15,7 @@ export const SERVICES: Record<string, symbol> = {
   CONFIG: Symbol('Config'),
   TRACER: Symbol('Tracer'),
   METER: Symbol('Meter'),
+  METRICS_REGISTRY: Symbol('MetricsRegistry'),
+  CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
 };
 /* eslint-enable @typescript-eslint/naming-convention */

@@ -7,7 +7,7 @@ import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from '@turf/turf';
 import { snakeCase } from 'snake-case';
-import { METRICS_REGISTRY, SERVICES } from '../../common/constants';
+import { SERVICES } from '../../common/constants';
 import { AppConfig, IConfig, QueueConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { Source, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
@@ -32,7 +32,7 @@ export class TilesManager {
     private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: IConfig,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(METRICS_REGISTRY) registry: client.Registry
+    @inject(SERVICES.METRICS_REGISTRY) registry: client.Registry
   ) {
     const appConfig = config.get<AppConfig>('app');
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;

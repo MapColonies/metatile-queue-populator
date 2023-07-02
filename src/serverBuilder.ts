@@ -9,7 +9,7 @@ import { metricsMiddleware } from '@map-colonies/telemetry';
 import { inject, injectable } from 'tsyringe';
 import { Logger } from '@map-colonies/js-logger';
 import httpLogger from '@map-colonies/express-access-log-middleware';
-import { METRICS_REGISTRY, SERVICES } from './common/constants';
+import { SERVICES } from './common/constants';
 import { IConfig } from './common/interfaces';
 import { TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 
@@ -21,7 +21,7 @@ export class ServerBuilder {
     @inject(SERVICES.CONFIG) private readonly config: IConfig,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(TILES_ROUTER_SYMBOL) private readonly tilesRouter: Router,
-    @inject(METRICS_REGISTRY) private readonly metricsRegistry: Registry
+    @inject(SERVICES.METRICS_REGISTRY) private readonly metricsRegistry: Registry
   ) {
     this.serverInstance = express();
   }
