@@ -18,6 +18,10 @@ export interface QueueConfig {
   retentionHours: number;
 }
 
+export interface JobInsertConfig extends Partial<Omit<QueueConfig, 'retryDelaySeconds'>> {
+  retryDelay?: number;
+}
+
 export interface AppConfig {
   projectName: string;
   enableRequestQueueHandling: boolean;

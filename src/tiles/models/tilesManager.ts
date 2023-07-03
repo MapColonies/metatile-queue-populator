@@ -8,7 +8,7 @@ import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from '@turf/turf';
 import { snakeCase } from 'snake-case';
 import { SERVICES } from '../../common/constants';
-import { AppConfig, IConfig, QueueConfig } from '../../common/interfaces';
+import { AppConfig, IConfig, JobInsertConfig, QueueConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { Source, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
@@ -27,7 +27,7 @@ export class TilesManager {
 
   private readonly batchSize: number;
   private readonly metatile: number;
-  private readonly baseQueueConfig: Partial<PgBoss.JobInsert>;
+  private readonly baseQueueConfig: JobInsertConfig;
 
   public constructor(
     private readonly pgboss: PgBoss,
@@ -45,7 +45,7 @@ export class TilesManager {
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
 
     this.logger.info({
-      msg: 'queue initialized',
+      msg: 'tiles manager initialized',
       requestQueueName: this.requestQueueName,
       tilesQueueName: this.tilesQueueName,
       ...this.baseQueueConfig,
@@ -121,12 +121,7 @@ export class TilesManager {
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
-    const res = await this.pgboss.sendOnce(
-      this.requestQueueName,
-      payload,
-      { retryLimit: this.baseQueueConfig.retryLimit, retryDelay: this.baseQueueConfig.retryDelay },
-      key
-    );
+    const res = await this.pgboss.sendOnce(this.requestQueueName, payload, { ...this.baseQueueConfig }, key);
 
     if (res === null) {
       this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
