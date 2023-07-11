@@ -18,6 +18,7 @@ module.exports = {
     '!**/controllers/**',
     '!**/routes/**',
     '!<rootDir>/src/*',
+    '!<rootDir>/src/tiles/models/errors.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
   reporters: [

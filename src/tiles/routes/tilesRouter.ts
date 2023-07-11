@@ -6,7 +6,7 @@ export const tilesRouterFactory: FactoryFunction<Router> = (dependencyContainer)
   const router = Router();
   const controller = dependencyContainer.resolve(TilesController);
 
-  router.post('/bbox', controller.postTilesByBbox);
+  router.post('/area', controller.postTilesByArea);
   router.post('/list', controller.postTilesList);
 
   return router;

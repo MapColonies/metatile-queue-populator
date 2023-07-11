@@ -17,3 +17,15 @@ export interface QueueConfig {
   retryDelaySeconds: number;
   retentionHours: number;
 }
+
+export interface JobInsertConfig extends Partial<Omit<QueueConfig, 'retryDelaySeconds'>> {
+  retryDelay?: number;
+}
+
+export interface AppConfig {
+  projectName: string;
+  enableRequestQueueHandling: boolean;
+  requestQueueCheckIntervalSec: number;
+  tilesBatchSize: number;
+  metatileSize: number;
+}
