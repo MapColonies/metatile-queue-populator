@@ -160,7 +160,7 @@ describe('tiles', function () {
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
           const message = (response.body as { message: string }).message;
-          expect(message).toContain('request.body.minZoom should be >= 0');
+          expect(message).toContain('request/body/minZoom must be >= 0');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -248,7 +248,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList({} as []);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should be array');
+          expect(response.body).toHaveProperty('message', 'request/body must be array');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -256,7 +256,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should NOT have fewer than 1 items');
+          expect(response.body).toHaveProperty('message', 'request/body must NOT have fewer than 1 items');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -264,7 +264,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([{ x: 0, y: 0 } as Tile]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', "request.body[0] should have required property 'z'");
+          expect(response.body).toHaveProperty('message', "request/body/0 must have required property 'z'");
           expect(response).toSatisfyApiSpec();
         });
 
