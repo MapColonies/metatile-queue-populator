@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/MapColonies/metatile-queue-populator/compare/v1.0.1...v2.0.0) (2023-10-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* multi areal request and geojson support (#12)
+
+### Features
+
+* multi areal request and geojson support ([#12](https://github.com/MapColonies/metatile-queue-populator/issues/12)) ([3c0d24b](https://github.com/MapColonies/metatile-queue-populator/commit/3c0d24bc54565de60cab7ea7f315489cd0fb5f19))
+
 ### [1.0.1](https://github.com/MapColonies/metatile-queue-populator/compare/v1.0.0...v1.0.1) (2022-06-15)
 
 ## 1.0.0 (2022-04-27)
