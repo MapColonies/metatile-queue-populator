@@ -34,7 +34,10 @@
     "enableRequestQueueHandling": true,
     "requestQueueCheckIntervalSec": 30,
     "tilesBatchSize": 10000,
-    "metatileSize": 8
+    "metatileSize": 8,
+    "consumeDelay": {
+      "enabled": false
+    }
   },
   "queue": {
     "expireInSeconds": 600,

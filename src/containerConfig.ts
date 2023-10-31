@@ -1,19 +1,20 @@
 import config from 'config';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
-import { DependencyContainer } from 'tsyringe/dist/typings/types';
+import { DependencyContainer, Lifecycle, instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
-import { instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
 import client from 'prom-client';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import { HEALTHCHECK_SYMBOL, ON_SIGNAL, SERVICES, SERVICE_NAME } from './common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK_SYMBOL, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from './common/constants';
 import { tracing } from './common/tracing';
 import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { DbConfig, pgBossFactory } from './common/pgbossFactory';
+import { DbConfig, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TilesManager } from './tiles/models/tilesManager';
 import { AppConfig, IConfig } from './common/interfaces';
+import { consumeAndPopulateFactory } from './requestConsumer';
+import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -81,6 +82,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
         },
       },
+      {
+        token: JOB_QUEUE_PROVIDER,
+        provider: { useClass: PgBossJobQueueProvider },
+        options: { lifecycle: Lifecycle.Singleton },
+      },
+      { token: CONSUME_AND_POPULATE_FACTORY, provider: { useFactory: consumeAndPopulateFactory } },
     ];
 
     return registerDependencies(dependencies, options?.override, options?.useChild);
