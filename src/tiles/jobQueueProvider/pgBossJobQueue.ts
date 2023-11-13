@@ -72,8 +72,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   private async *getJobsIterator<T>(conditionFn?: () => boolean | Promise<boolean>): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
-    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until the queue ends
-    while (true && this.isRunning) {
+    while (this.isRunning) {
       const shouldFetch = conditionFn ? await conditionFn() : true;
 
       if (!shouldFetch) {
