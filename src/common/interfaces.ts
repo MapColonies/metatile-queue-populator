@@ -28,4 +28,9 @@ export interface AppConfig {
   requestQueueCheckIntervalSec: number;
   tilesBatchSize: number;
   metatileSize: number;
+  consumeDelay: {
+    enabled: boolean;
+    delaySec: number;
+    tilesQueueSizeLimit: number;
+  };
 }

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { setTimeout as setTimeoutPromise } from 'timers/promises';
+import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import config from 'config';
 import { trace } from '@opentelemetry/api';
@@ -11,11 +11,24 @@ import { Tile } from '@map-colonies/tile-calc';
 import { Registry } from 'prom-client';
 import { bbox, FeatureCollection } from '@turf/turf';
 import { getApp } from '../../../src/app';
-import { SERVICES } from '../../../src/common/constants';
+import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
+import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
+import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
+
+async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+  for await (const _unused of setIntervalPromise(10)) {
+    const job = await boss.getJobById(jobId);
+    if (job?.completedon) {
+      return job;
+    }
+  }
+  return null;
+}
 
 describe('tiles', function () {
   describe('api', () => {
@@ -321,6 +334,10 @@ describe('tiles', function () {
                       tilesBatchSize: 10,
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
+                      requestQueueCheckIntervalSec: 1,
+                      consumeDelay: {
+                        enabled: false,
+                      },
                     };
                   } else {
                     return config.get(key);
@@ -349,6 +366,10 @@ describe('tiles', function () {
 
     it('should add the tiles from the expireTiles bbox request into the queue', async () => {
       const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
       const request = {
         items: [
           {
@@ -360,9 +381,13 @@ describe('tiles', function () {
         source: 'expiredTiles',
       };
 
-      await boss.send('tiles-requests-test-requests', request);
+      const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
       const result = await boss.fetch<Tile>('tiles-test-requests', 14);
       expect(result).not.toBeNull();
@@ -388,6 +413,10 @@ describe('tiles', function () {
 
     it('should add the tiles from the geojson api request into the queue', async () => {
       const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
       const request = {
         items: [
           {
@@ -399,9 +428,13 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      await boss.send('tiles-requests-test-requests', request);
+      const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
       const result = await boss.fetch<Tile>('tiles-test-requests', 14);
       expect(result).not.toBeNull();
@@ -427,6 +460,10 @@ describe('tiles', function () {
 
     it('should add the tiles from the api bbox request into the queue', async () => {
       const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
       const request = {
         items: [
           {
@@ -438,9 +475,13 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      await boss.send('tiles-requests-test-requests', request);
+      const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
       const result = await boss.fetch<Tile>('tiles-test-requests', 14);
       expect(result).not.toBeNull();
@@ -466,6 +507,10 @@ describe('tiles', function () {
 
     it('should add the tiles from the api multi areal request into the queue', async () => {
       const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
       const request = {
         items: [
           {
@@ -482,9 +527,13 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      await boss.send('tiles-requests-test-requests', request);
+      const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
       const result = await boss.fetch<Tile>('tiles-test-requests', 15);
       expect(result).not.toBeNull();
@@ -511,6 +560,10 @@ describe('tiles', function () {
 
     it('should filter out non intersected tiles for geojson request', async () => {
       const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
       const [west, south, east, north] = bbox(GOOD_LARGE_FEATURE);
       const boundingBox = { west, south, east, north };
 
@@ -525,9 +578,9 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      await boss.send('tiles-requests-test-requests', geojsonRequest);
+      const jobId1 = await boss.send('tiles-requests-test-requests', geojsonRequest);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId1 as string);
 
       const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
 
@@ -542,15 +595,120 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      await boss.send('tiles-requests-test-requests', bboxRequest);
+      const jobId2 = await boss.send('tiles-requests-test-requests', bboxRequest);
 
-      await setTimeoutPromise(2000);
+      await waitForJobToBeResolved(boss, jobId2 as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
       const bboxResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
 
       expect(geojsonResult).not.toBeNull();
       expect(bboxResult).not.toBeNull();
       expect(geojsonResult!.length).toBeLessThan(bboxResult!.length);
+    });
+  });
+
+  describe('tileRequestHandlerWithDelay', () => {
+    let container: DependencyContainer;
+
+    beforeAll(async function () {
+      const [, depContainer] = await getApp({
+        useChild: true,
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  if (key === 'app') {
+                    return {
+                      projectName: 'test-requests',
+                      tilesBatchSize: 10,
+                      metatileSize: 8,
+                      enableRequestQueueHandling: true,
+                      requestQueueCheckIntervalSec: 1,
+                      consumeDelay: {
+                        enabled: true,
+                        delaySec: 1,
+                        tilesQueueSizeLimit: 2,
+                      },
+                    };
+                  } else {
+                    return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
+        ],
+      });
+      container = depContainer;
+    });
+
+    beforeEach(async function () {
+      const boss = container.resolve(PgBoss);
+      await boss.clearStorage();
+    });
+
+    afterAll(async function () {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+    });
+
+    it('should delay the consumption of the requests queue if tiles queue is overflowing', async () => {
+      const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const request1 = {
+        items: [
+          {
+            area: BBOX2,
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'expiredTiles',
+      };
+
+      const jobId1 = await boss.send('tiles-requests-test-requests', request1);
+
+      await waitForJobToBeResolved(boss, jobId1 as string);
+
+      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', 5000);
+
+      const bboxRequest = {
+        items: [
+          {
+            area: BBOX1,
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'api',
+      };
+
+      await boss.send('tiles-requests-test-requests', bboxRequest);
+
+      await setTimeoutPromise(2000);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const bboxResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
+
+      expect(geojsonResult).not.toBeNull();
+      expect(bboxResult).toBeNull();
+      const currentRequestsQueueSize = await boss.getQueueSize('tiles-requests-test-requests');
+      expect(currentRequestsQueueSize).toBe(1);
     });
   });
 });

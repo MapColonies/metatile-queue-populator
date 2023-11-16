@@ -8,6 +8,8 @@ export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
 export const HEALTHCHECK_SYMBOL = Symbol('healthcheck');
 export const ON_SIGNAL = Symbol('onSignal');
+export const CONSUME_AND_POPULATE_FACTORY = Symbol('consumeAndPopulateFactory');
+export const JOB_QUEUE_PROVIDER = Symbol('JobQueueProvider');
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export const SERVICES: Record<string, symbol> = {
@@ -19,3 +21,5 @@ export const SERVICES: Record<string, symbol> = {
   CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
 };
 /* eslint-enable @typescript-eslint/naming-convention */
+
+export const MILLISECONDS_IN_SECOND = 1000;

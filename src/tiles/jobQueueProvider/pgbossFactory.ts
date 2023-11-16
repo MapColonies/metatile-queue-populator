@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises';
 import PgBoss, { ConstructorOptions, DatabaseOptions } from 'pg-boss';
-import { SERVICE_NAME } from './constants';
+import { SERVICE_NAME } from '../../common/constants';
 
 const createDatabaseOptions = async (dbConfig: DbConfig): Promise<DatabaseOptions> => {
   const { enableSslAuth, sslPaths, ...databaseOptions } = dbConfig;

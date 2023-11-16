@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
-import PgBoss from 'pg-boss';
+import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
 import { inject, Lifecycle, scoped } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
@@ -130,11 +130,11 @@ export class TilesManager {
   }
 
   public async addTilesToQueue(tiles: Tile[]): Promise<void> {
-    const id = uuidv4();
+    const requestId = uuidv4();
 
-    this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: id, itemCount: tiles.length });
+    this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: requestId, itemCount: tiles.length });
 
-    const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } }));
+    const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: requestId } }));
     await this.populateTilesQueue(tileJobsArr, 'api');
   }
 
@@ -142,7 +142,7 @@ export class TilesManager {
     await this.pgboss.getQueueSize(this.requestQueueName);
   }
 
-  public async handleTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+  public async handleTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
     this.logger.info({
       msg: 'handling tile request',
       queueName: this.requestQueueName,
@@ -160,7 +160,7 @@ export class TilesManager {
     if (job.data.source === 'api') {
       await this.handleApiTileRequest(job);
     } else {
-      await this.handleExpiredTileRequest(job as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload<BoundingBox>, void>);
+      await this.handleExpiredTileRequest(job as JobWithMetadata<TileRequestQueuePayload<BoundingBox>>);
     }
 
     if (fetchTimerEnd) {
@@ -170,9 +170,9 @@ export class TilesManager {
     this.requestsHandledCounter?.inc({ source: job.data.source, retrycount: job.retrycount });
   }
 
-  private async handleApiTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>): Promise<void> {
+  private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
     const { data, id } = job;
-    let tileArr: PgBoss.JobInsert<Tile & { parent: string }>[] = [];
+    let tileArr: JobInsert<Tile & { parent: string }>[] = [];
 
     for (const { area, minZoom, maxZoom } of data.items) {
       const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
@@ -200,9 +200,9 @@ export class TilesManager {
     }
   }
 
-  private async handleExpiredTileRequest(job: PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload<BoundingBox>, void>): Promise<void> {
+  private async handleExpiredTileRequest(job: JobWithMetadata<TileRequestQueuePayload<BoundingBox>>): Promise<void> {
     const { data, id } = job;
-    const tileMap = new Map<string, PgBoss.JobInsert<Tile & { parent: string }>>();
+    const tileMap = new Map<string, JobInsert<Tile & { parent: string }>>();
 
     for (const { area, minZoom, maxZoom } of data.items) {
       for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
@@ -222,7 +222,7 @@ export class TilesManager {
     }
   }
 
-  private async populateTilesQueue(tiles: PgBoss.JobInsert<Tile & { parent: string }>[], source: Source): Promise<void> {
+  private async populateTilesQueue(tiles: JobInsert<Tile & { parent: string }>[], source: Source): Promise<void> {
     this.logger.info({ msg: 'populating tiles queue', queueName: this.tilesQueueName, itemCount: tiles.length, source });
 
     await this.pgboss.insert(tiles);

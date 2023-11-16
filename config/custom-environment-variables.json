@@ -60,6 +60,20 @@
     "metatileSize": {
       "__name": "APP_METATILE_SIZE",
       "__format": "number"
+    },
+    "consumeDelay": {
+      "enalbed": {
+        "__name": "APP_CONSUME_DELAY_ENABLED",
+        "__format": "boolean"
+      },
+      "delaySec": {
+        "__name": "APP_CONSUME_DELAY_SEC",
+        "__format": "number"
+      },
+      "tilesQueueSizeLimit": {
+        "__name": "APP_CONSUME_DELAY_TILES_QUEUE_SIZE_LIMIT",
+        "__format": "number"
+      }
     }
   },
   "queue": {
