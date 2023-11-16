@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/MapColonies/metatile-queue-populator/compare/v2.0.0...v2.1.0) (2023-11-16)
+
+
+### Features
+
+* conditional requests-queue consumption delay ([#15](https://github.com/MapColonies/metatile-queue-populator/issues/15)) ([4d90ccd](https://github.com/MapColonies/metatile-queue-populator/commit/4d90ccd7c27b50ee9ef87f4a37d669955d4c6d0b))
+
 ## [2.0.0](https://github.com/MapColonies/metatile-queue-populator/compare/v1.0.1...v2.0.0) (2023-10-11)
 
 
