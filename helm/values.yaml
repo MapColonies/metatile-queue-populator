@@ -32,6 +32,10 @@ env:
   projectName: 'default'
   enableRequestQueueHandling: true
   requestQueueCheckIntervalSec: 60
+  consumeDelay:
+    enalbed: false
+    # delaySec: 10
+    # tilesQueueSizeLimit: 666
   tilesBatchSize: 10000
   metatileSize: 8
   port: 8080
