@@ -62,7 +62,7 @@
       "__format": "number"
     },
     "consumeDelay": {
-      "enalbed": {
+      "enabled": {
         "__name": "APP_CONSUME_DELAY_ENABLED",
         "__format": "boolean"
       },

@@ -33,7 +33,7 @@ env:
   enableRequestQueueHandling: true
   requestQueueCheckIntervalSec: 60
   consumeDelay:
-    enalbed: false
+    enabled: false
     # delaySec: 10
     # tilesQueueSizeLimit: 666
   tilesBatchSize: 10000
