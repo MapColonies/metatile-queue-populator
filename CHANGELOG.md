@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.1](https://github.com/MapColonies/metatile-queue-populator/compare/v2.1.0...v2.1.1) (2023-11-27)
+
+
+### Bug Fixes
+
+* typo ([ba5f359](https://github.com/MapColonies/metatile-queue-populator/commit/ba5f35982190b7148ffe78cc0c9106a4dda38057))
+
 ## [2.1.0](https://github.com/MapColonies/metatile-queue-populator/compare/v2.0.0...v2.1.0) (2023-11-16)
 
 
