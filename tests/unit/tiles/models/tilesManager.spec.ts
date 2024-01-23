@@ -4,6 +4,7 @@ import { Tile } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import client from 'prom-client';
 import { bbox, FeatureCollection } from '@turf/turf';
+import { API_STATE } from '@map-colonies/detiler-common';
 import { IConfig } from '../../../../src/common/interfaces';
 import { RequestAlreadyInQueueError } from '../../../../src/tiles/models/errors';
 import { TileRequestQueuePayload, TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
@@ -18,7 +19,7 @@ const queueConfig = { retryDelay: 1 };
 describe('tilesManager', () => {
   let configMock: jest.Mocked<IConfig>;
 
-  beforeAll(() => {
+  beforeEach(() => {
     configMock = {
       get: jest.fn().mockImplementation((key: string) => {
         switch (key) {
@@ -50,6 +51,7 @@ describe('tilesManager', () => {
       const expectedPayload: TileRequestQueuePayload = {
         items: [{ area: { west: 90, south: 90, east: -90, north: -90 }, minZoom: 0, maxZoom: 0 }],
         source: 'api',
+        state: API_STATE,
       };
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
@@ -62,7 +64,7 @@ describe('tilesManager', () => {
       const sendOnceMock = jest.fn().mockResolvedValue('ok');
       const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger, new client.Registry());
       const request: TilesByAreaRequest[] = [{ area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 }];
-      const expectedPayload: TileRequestQueuePayload = { items: [{ area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 }], source: 'api' };
+      const expectedPayload: TileRequestQueuePayload = { items: [{ area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 }], source: 'api', state: API_STATE };
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
@@ -83,6 +85,7 @@ describe('tilesManager', () => {
           { area: { west: 90, south: 90, east: -90, north: -90 }, minZoom: 0, maxZoom: 0 },
         ],
         source: 'api',
+        state: API_STATE,
       };
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
@@ -111,6 +114,90 @@ describe('tilesManager', () => {
           { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
         ],
         source: 'api',
+        state: API_STATE,
+      };
+
+      const resource = tilesManager.addArealTilesRequestToQueue(request);
+
+      await expect(resource).resolves.not.toThrow();
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
+    });
+
+    it('resolve without error if request is a mix with force attibute', async function () {
+      const sendOnceMock = jest.fn().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const featureCollection: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [GOOD_FEATURE, GOOD_FEATURE],
+      };
+      const request: TilesByAreaRequest[] = [
+        { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+        { area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 },
+        { area: featureCollection, minZoom: 0, maxZoom: 0 },
+      ];
+      const expectedPayload: TileRequestQueuePayload = {
+        items: [
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+          { area: { west: 90, south: 90, east: -90, north: -90 }, minZoom: 0, maxZoom: 0 },
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+        ],
+        source: 'api',
+        state: API_STATE,
+        force: true,
+      };
+
+      const resource = tilesManager.addArealTilesRequestToQueue(request, true);
+
+      await expect(resource).resolves.not.toThrow();
+      expect(sendOnceMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, queueConfig, hashValue(expectedPayload));
+    });
+
+    it('resolve without error if request is a mix with force attribute if app is configured so', async function () {
+      configMock = {
+        ...configMock,
+        get: jest.fn().mockImplementation((key: string) => {
+          switch (key) {
+            case 'app':
+              return {
+                projectName: 'test',
+                tilesBatchSize: 10,
+                metatileSize: 8,
+                force: { api: true },
+              };
+            case 'telemetry.metrics.buckets':
+              return [];
+            case 'queue': {
+              const { retryDelay } = queueConfig;
+              return { retryDelaySeconds: retryDelay, ...queueConfig };
+            }
+            default:
+              break;
+          }
+        }),
+      };
+
+      const sendOnceMock = jest.fn().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ sendOnce: sendOnceMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const featureCollection: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [GOOD_FEATURE, GOOD_FEATURE],
+      };
+      const request: TilesByAreaRequest[] = [
+        { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+        { area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 },
+        { area: featureCollection, minZoom: 0, maxZoom: 0 },
+      ];
+      const expectedPayload: TileRequestQueuePayload = {
+        items: [
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+          { area: { west: 90, south: 90, east: -90, north: -90 }, minZoom: 0, maxZoom: 0 },
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+          { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
+        ],
+        source: 'api',
+        state: API_STATE,
+        force: true,
       };
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
@@ -182,6 +269,74 @@ describe('tilesManager', () => {
       ]);
     });
 
+    it('should insert the tiles into the queue with force attribute if requst is configured so', async function () {
+      const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile>[]]>().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+      const promise = tilesManager.addTilesToQueue(
+        [
+          { x: 9794, y: 2650, z: 16, metatile: 8 },
+          { x: 39176, y: 10600, z: 18, metatile: 8 },
+          { x: 19588, y: 5300, z: 17, metatile: 8 },
+        ],
+        true
+      ) as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>;
+
+      await expect(promise).resolves.not.toThrow();
+      expect(insertMock).toHaveBeenCalledTimes(1);
+
+      const args = insertMock.mock.calls[0][0];
+      expect(args.map((job) => job.data)).toContainSameTiles([
+        { x: 9794, y: 2650, z: 16, metatile: 8, force: true },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
+        { x: 19588, y: 5300, z: 17, metatile: 8, force: true },
+      ]);
+    });
+
+    it('should insert the tiles into the queue with force attribute if app is configured so', async function () {
+      configMock = {
+        ...configMock,
+        get: jest.fn().mockImplementation((key: string) => {
+          switch (key) {
+            case 'app':
+              return {
+                projectName: 'test',
+                tilesBatchSize: 10,
+                metatileSize: 8,
+                force: { api: true },
+              };
+            case 'telemetry.metrics.buckets':
+              return [];
+            case 'queue': {
+              const { retryDelay } = queueConfig;
+              return { retryDelaySeconds: retryDelay, ...queueConfig };
+            }
+            default:
+              break;
+          }
+        }),
+      };
+
+      const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile>[]]>().mockResolvedValue('ok');
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+      const promise = tilesManager.addTilesToQueue([
+        { x: 9794, y: 2650, z: 16, metatile: 8 },
+        { x: 39176, y: 10600, z: 18, metatile: 8 },
+        { x: 19588, y: 5300, z: 17, metatile: 8 },
+      ]) as unknown as PgBoss.JobWithDoneCallback<TileRequestQueuePayload, void>;
+
+      await expect(promise).resolves.not.toThrow();
+      expect(insertMock).toHaveBeenCalledTimes(1);
+
+      const args = insertMock.mock.calls[0][0];
+      expect(args.map((job) => job.data)).toContainSameTiles([
+        { x: 9794, y: 2650, z: 16, metatile: 8, force: true },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
+        { x: 19588, y: 5300, z: 17, metatile: 8, force: true },
+      ]);
+    });
+
     it('should add the same parent id to all the tiles added', async function () {
       const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile & { parent: string }>[]]>().mockResolvedValue('ok');
       const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
@@ -228,6 +383,90 @@ describe('tilesManager', () => {
           {
             name: 'tiles-test',
             data: { x: 39176, y: 10600, z: 18, metatile: 8 },
+            retryDelay: 1,
+          },
+        ]);
+      });
+
+      it('should insert the tile generated by a bbox request to the queue with force attribute if request is configured so', async function () {
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [
+              {
+                area: BBOX1,
+                minZoom: 18,
+                maxZoom: 18,
+              },
+            ],
+            source: 'api',
+            force: true,
+          },
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
+            retryDelay: 1,
+          },
+        ]);
+      });
+
+      it('should insert the tile generated by a bbox request to the queue with force attribute if app is configured so', async function () {
+        configMock = {
+          ...configMock,
+          get: jest.fn().mockImplementation((key: string) => {
+            switch (key) {
+              case 'app':
+                return {
+                  projectName: 'test',
+                  tilesBatchSize: 10,
+                  metatileSize: 8,
+                  force: { api: true },
+                };
+              case 'telemetry.metrics.buckets':
+                return [];
+              case 'queue': {
+                const { retryDelay } = queueConfig;
+                return { retryDelaySeconds: retryDelay, ...queueConfig };
+              }
+              default:
+                break;
+            }
+          }),
+        };
+
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [
+              {
+                area: BBOX1,
+                minZoom: 18,
+                maxZoom: 18,
+              },
+            ],
+            source: 'api',
+          },
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
             retryDelay: 1,
           },
         ]);
@@ -593,6 +832,94 @@ describe('tilesManager', () => {
         ]);
       });
 
+      it('should insert the tile to the queue with force attribute if request configured so', async function () {
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const id = faker.datatype.uuid();
+
+        const promise = tilesManager.handleTileRequest({
+          id,
+          data: {
+            items: [
+              {
+                area: BBOX1,
+                minZoom: 18,
+                maxZoom: 18,
+              },
+            ],
+            source: 'expiredTiles',
+            force: true,
+          },
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
+            retryDelay: 1,
+          },
+        ]);
+      });
+
+      it('should insert the tile to the queue with force attribute if app configured so', async function () {
+        configMock = {
+          ...configMock,
+          get: jest.fn().mockImplementation((key: string) => {
+            switch (key) {
+              case 'app':
+                return {
+                  projectName: 'test',
+                  tilesBatchSize: 10,
+                  metatileSize: 8,
+                  force: { expiredTiles: true },
+                };
+              case 'telemetry.metrics.buckets':
+                return [];
+              case 'queue': {
+                const { retryDelay } = queueConfig;
+                return { retryDelaySeconds: retryDelay, ...queueConfig };
+              }
+              default:
+                break;
+            }
+          }),
+        };
+
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const id = faker.datatype.uuid();
+
+        const promise = tilesManager.handleTileRequest({
+          id,
+          data: {
+            items: [
+              {
+                area: BBOX1,
+                minZoom: 18,
+                maxZoom: 18,
+              },
+            ],
+            source: 'expiredTiles',
+          },
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args).toEqual([
+          {
+            name: 'tiles-test',
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
+            retryDelay: 1,
+          },
+        ]);
+      });
+
       it('should insert tiles in multiple zoom levels', async function () {
         const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile>[]]>().mockResolvedValue('ok');
         const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
@@ -618,6 +945,35 @@ describe('tilesManager', () => {
           { x: 9794, y: 2650, z: 16, metatile: 8 },
           { x: 39176, y: 10600, z: 18, metatile: 8 },
           { x: 19588, y: 5300, z: 17, metatile: 8 },
+        ]);
+      });
+
+      it('should insert tiles with the parent state', async function () {
+        const insertMock = jest.fn<Promise<string>, [PgBoss.JobInsert<Tile>[]]>().mockResolvedValue('ok');
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [
+              {
+                area: BBOX1,
+                minZoom: 16,
+                maxZoom: 18,
+              },
+            ],
+            source: 'expiredTiles',
+            state: 666,
+          },
+        } as unknown as PgBoss.JobWithMetadataDoneCallback<TileRequestQueuePayload, void>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+
+        const args = insertMock.mock.calls[0][0];
+        expect(args.map((job) => job.data)).toContainSameTiles([
+          { x: 9794, y: 2650, z: 16, metatile: 8, state: 666 },
+          { x: 39176, y: 10600, z: 18, metatile: 8, state: 666 },
+          { x: 19588, y: 5300, z: 17, metatile: 8, state: 666 },
         ]);
       });
 

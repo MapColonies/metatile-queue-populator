@@ -1,4 +1,4 @@
-import { BoundingBox } from '@map-colonies/tile-calc';
+import { BoundingBox, Tile } from '@map-colonies/tile-calc';
 import { Feature, FeatureCollection } from '@turf/turf';
 
 interface BaseTilesRequest {
@@ -18,7 +18,16 @@ export interface TileRequestQueuePayloadItem<A = BoundingBox | Feature> extends 
   area: A;
 }
 
-export interface TileRequestQueuePayload<A = BoundingBox | Feature> {
+export interface BaseQueuePayload {
+  state?: number;
+  force?: boolean;
+}
+
+export interface TileRequestQueuePayload<A = BoundingBox | Feature> extends BaseQueuePayload {
   items: TileRequestQueuePayloadItem<A>[];
   source: Source;
+}
+
+export interface TileQueuePayload extends BaseQueuePayload, Tile {
+  parent: string;
 }

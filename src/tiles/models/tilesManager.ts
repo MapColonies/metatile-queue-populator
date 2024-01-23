@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
+import { API_STATE } from '@map-colonies/detiler-common';
 import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
 import { inject, Lifecycle, scoped } from 'tsyringe';
 import client from 'prom-client';
@@ -10,7 +11,7 @@ import { snakeCase } from 'snake-case';
 import { SERVICES } from '../../common/constants';
 import { AppConfig, IConfig, JobInsertConfig, QueueConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
-import { Source, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
+import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
 import { areaToBoundingBox, boundingBoxToPolygon, stringifyTile } from './util';
@@ -27,6 +28,8 @@ export class TilesManager {
 
   private readonly batchSize: number;
   private readonly metatile: number;
+  private readonly shouldForceApiTiles?: boolean;
+  private readonly shouldForceExpiredTiles?: boolean;
   private readonly baseQueueConfig: JobInsertConfig;
 
   public constructor(
@@ -40,6 +43,8 @@ export class TilesManager {
     this.tilesQueueName = `${TILES_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.batchSize = appConfig.tilesBatchSize;
     this.metatile = appConfig.metatileSize;
+    this.shouldForceApiTiles = appConfig.force?.api;
+    this.shouldForceExpiredTiles = appConfig.force?.expiredTiles;
 
     const { retryDelaySeconds, ...queueConfig } = config.get<QueueConfig>('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
@@ -49,6 +54,9 @@ export class TilesManager {
       requestQueueName: this.requestQueueName,
       tilesQueueName: this.tilesQueueName,
       ...this.baseQueueConfig,
+      batchSize: this.batchSize,
+      metatile: this.metatile,
+      force: appConfig.force,
     });
 
     if (registry !== undefined) {
@@ -100,7 +108,7 @@ export class TilesManager {
     }
   }
 
-  public async addArealTilesRequestToQueue(request: TilesByAreaRequest[]): Promise<void> {
+  public async addArealTilesRequestToQueue(request: TilesByAreaRequest[], force?: boolean): Promise<void> {
     const payload: TileRequestQueuePayload = {
       items: request.flatMap((item) => {
         if (Array.isArray(item.area)) {
@@ -115,6 +123,8 @@ export class TilesManager {
         return { ...item, area: item.area };
       }),
       source: 'api',
+      state: API_STATE,
+      force: this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force,
     };
 
     const key = hashValue(payload);
@@ -129,12 +139,16 @@ export class TilesManager {
     }
   }
 
-  public async addTilesToQueue(tiles: Tile[]): Promise<void> {
+  public async addTilesToQueue(tiles: Tile[], force?: boolean): Promise<void> {
     const requestId = uuidv4();
 
     this.logger.debug({ msg: 'inserting tiles to queue', queueName: this.tilesQueueName, parent: requestId, itemCount: tiles.length });
 
-    const tileJobsArr = tiles.map((tile) => ({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: requestId } }));
+    const tileJobsArr = tiles.map((tile) => ({
+      ...this.baseQueueConfig,
+      name: this.tilesQueueName,
+      data: { ...tile, parent: requestId, state: API_STATE, force: this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force },
+    }));
     await this.populateTilesQueue(tileJobsArr, 'api');
   }
 
@@ -151,6 +165,8 @@ export class TilesManager {
       source: job.data.source,
       retryCount: job.retrycount,
       retryLimit: this.baseQueueConfig.retryLimit,
+      state: job.data.state,
+      isForced: job.data.force,
     });
 
     this.logger.debug({ msg: 'handling the following tile request', queueName: this.requestQueueName, jobId: job.id, job });
@@ -171,10 +187,15 @@ export class TilesManager {
   }
 
   private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
-    const { data, id } = job;
-    let tileArr: JobInsert<Tile & { parent: string }>[] = [];
+    const {
+      data: { items, state, force },
+      id,
+    } = job;
+    const isTileForced = this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force;
 
-    for (const { area, minZoom, maxZoom } of data.items) {
+    let tileArr: JobInsert<TileQueuePayload>[] = [];
+
+    for (const { area, minZoom, maxZoom } of items) {
       const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
 
       for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
@@ -186,7 +207,7 @@ export class TilesManager {
             }
           }
 
-          tileArr.push({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } });
+          tileArr.push({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id, state, force: isTileForced } });
           if (tileArr.length >= this.batchSize) {
             await this.populateTilesQueue(tileArr, 'api');
             tileArr = [];
@@ -201,14 +222,23 @@ export class TilesManager {
   }
 
   private async handleExpiredTileRequest(job: JobWithMetadata<TileRequestQueuePayload<BoundingBox>>): Promise<void> {
-    const { data, id } = job;
-    const tileMap = new Map<string, JobInsert<Tile & { parent: string }>>();
+    const {
+      data: { items, state, force },
+      id,
+    } = job;
+    const isTileForced = this.shouldForceExpiredTiles === true ? this.shouldForceExpiredTiles : force;
 
-    for (const { area, minZoom, maxZoom } of data.items) {
+    const tileMap = new Map<string, JobInsert<TileQueuePayload>>();
+
+    for (const { area, minZoom, maxZoom } of items) {
       for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
         const tilesGenerator = boundingBoxToTilesGenerator(area, zoom, this.metatile);
         for await (const tile of tilesGenerator) {
-          tileMap.set(stringifyTile(tile), { ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id } });
+          tileMap.set(stringifyTile(tile), {
+            ...this.baseQueueConfig,
+            name: this.tilesQueueName,
+            data: { ...tile, parent: id, state, force: isTileForced },
+          });
           if (tileMap.size >= this.batchSize) {
             await this.populateTilesQueue(Array.from(tileMap.values()), 'expiredTiles');
             tileMap.clear();
@@ -222,7 +252,7 @@ export class TilesManager {
     }
   }
 
-  private async populateTilesQueue(tiles: JobInsert<Tile & { parent: string }>[], source: Source): Promise<void> {
+  private async populateTilesQueue(tiles: JobInsert<TileQueuePayload>[], source: Source): Promise<void> {
     this.logger.info({ msg: 'populating tiles queue', queueName: this.tilesQueueName, itemCount: tiles.length, source });
 
     await this.pgboss.insert(tiles);

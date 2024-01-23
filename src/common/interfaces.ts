@@ -1,3 +1,5 @@
+import { Source } from '../tiles/models/tiles';
+
 export interface IConfig {
   get: <T>(setting: string) => T;
   has: (setting: string) => boolean;
@@ -32,5 +34,8 @@ export interface AppConfig {
     enabled: boolean;
     delaySec: number;
     tilesQueueSizeLimit: number;
+  };
+  force?: {
+    [key in Source]?: boolean;
   };
 }
