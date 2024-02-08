@@ -31,3 +31,5 @@ export interface TileRequestQueuePayload<A = BoundingBox | Feature> extends Base
 export interface TileQueuePayload extends BaseQueuePayload, Tile {
   parent: string;
 }
+
+export type ExtendedTile = Tile & BaseQueuePayload;
