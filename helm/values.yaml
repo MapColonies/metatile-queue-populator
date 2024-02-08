@@ -36,6 +36,9 @@ env:
     enabled: false
     # delaySec: 10
     # tilesQueueSizeLimit: 666
+  force:
+    api: false
+    expiredTiles: false
   tilesBatchSize: 10000
   metatileSize: 8
   port: 8080

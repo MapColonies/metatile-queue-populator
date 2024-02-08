@@ -10,8 +10,8 @@ import { RequestAlreadyInQueueError, RequestValidationError } from '../models/er
 import { TilesByAreaRequest } from '../models/tiles';
 import { TilesManager } from '../models/tilesManager';
 
-type PostTilesByAreaHandler = RequestHandler<undefined, { message: string }, TilesByAreaRequest | TilesByAreaRequest[]>;
-type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[]>;
+type PostTilesByAreaHandler = RequestHandler<undefined, { message: string }, TilesByAreaRequest | TilesByAreaRequest[], { force?: boolean }>;
+type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[], { force?: boolean }>;
 
 @injectable()
 export class TilesController {
@@ -19,10 +19,9 @@ export class TilesController {
 
   public postTilesByArea: PostTilesByAreaHandler = async (req, res, next) => {
     const arealRequest = Array.isArray(req.body) ? req.body : [req.body];
-
     try {
       this.validateRequest(arealRequest);
-      await this.manager.addArealTilesRequestToQueue(arealRequest);
+      await this.manager.addArealTilesRequestToQueue(arealRequest, req.query.force);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
       if (error instanceof RequestValidationError) {
@@ -46,7 +45,7 @@ export class TilesController {
     }
 
     try {
-      await this.manager.addTilesToQueue(tiles);
+      await this.manager.addTilesToQueue(tiles, req.query.force);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
       next(error);

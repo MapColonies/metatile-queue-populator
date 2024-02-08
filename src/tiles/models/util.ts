@@ -2,8 +2,8 @@ import { BoundingBox, Tile } from '@map-colonies/tile-calc';
 import { Feature, Polygon, bbox as geojsonToBbox } from '@turf/turf';
 import isGeojson from '@turf/boolean-valid';
 
-export const stringifyTile = (tile: Tile): string => {
-  return `${tile.z}/${tile.x}/${tile.y}/${tile.metatile as number}`;
+export const stringifyTile = (tile: Tile & { state?: number; force?: boolean }): string => {
+  return `${tile.state ?? 0}/${tile.z}/${tile.x}/${tile.y}/${tile.metatile as number}/${tile.force === true ? 'forced' : 'unforced'}`;
 };
 
 export const boundingBoxToPolygon = (bbox: BoundingBox): Feature<Polygon> => {

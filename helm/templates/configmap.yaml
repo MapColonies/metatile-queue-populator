@@ -33,6 +33,8 @@ data:
   QUEUE_JOBS_RETRY_DELAY_SECONDS: {{ .retryDelaySeconds | quote }}
   QUEUE_JOBS_RETENTION_HOURS: {{ .retentionHours | quote }}
   {{- end -}}
+  FORCE_API_TILES: {{ .Values.env.force.api | quote }}
+  FORCE_EXPIRED_TILES: {{ .Values.env.force.expiredTiles | quote }}
   {{- if .Values.dbConfig.sslAuth.enabled }}
   DB_ENABLE_SSL_AUTH: "true"
   DB_CERT_SECRET_NAME: {{ .Values.dbConfig.sslAuth.secretName }}

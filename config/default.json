@@ -37,6 +37,10 @@
     "metatileSize": 8,
     "consumeDelay": {
       "enabled": false
+    },
+    "force": {
+      "api": false,
+      "expiredTiles": false
     }
   },
   "queue": {

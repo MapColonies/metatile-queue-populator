@@ -129,11 +129,38 @@ describe('tiles', function () {
           expect(response.status).toBe(httpStatusCodes.OK);
           expect(response).toSatisfyApiSpec();
         });
+
+        it('should return 200 if the multi area request is valid with force attribute', async function () {
+          const bbox = getBbox();
+          const featureCollection: FeatureCollection = {
+            type: 'FeatureCollection',
+            features: [GOOD_FEATURE, GOOD_FEATURE],
+          };
+
+          const response = await requestSender.postTilesByAreaRequest(
+            [
+              { area: bbox, minZoom: 0, maxZoom: 1 },
+              { area: featureCollection, minZoom: 1, maxZoom: 2 },
+            ],
+            true
+          );
+
+          expect(response.status).toBe(httpStatusCodes.OK);
+          expect(response).toSatisfyApiSpec();
+        });
       });
 
       describe('POST /tiles/list', function () {
         it('should return 200 if the request is valid', async function () {
           const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
+
+          expect(response.status).toBe(httpStatusCodes.OK);
+
+          expect(response).toSatisfyApiSpec();
+        });
+
+        it('should return 200 if the request is valid with force attibute', async function () {
+          const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }], true);
 
           expect(response.status).toBe(httpStatusCodes.OK);
 
@@ -411,6 +438,55 @@ describe('tiles', function () {
       ]);
     });
 
+    it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
+      const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const request = {
+        items: [
+          {
+            area: BBOX2,
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'expiredTiles',
+        force: true,
+        state: 100,
+      };
+
+      const jobId = await boss.send('tiles-requests-test-requests', request);
+
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      expect(result).not.toBeNull();
+
+      await boss.complete(result!.map((r) => r.id));
+      expect(result!.map((r) => r.data)).toContainSameTiles([
+        { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10596, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10596, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10597, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10597, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10598, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10599, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10598, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10599, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10600, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true, state: 100 },
+      ]);
+    });
+
     it('should add the tiles from the geojson api request into the queue', async () => {
       const boss = container.resolve(PgBoss);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
@@ -455,6 +531,54 @@ describe('tiles', function () {
         { x: 39177, y: 10599, z: 18, metatile: 8 },
         { x: 39177, y: 10600, z: 18, metatile: 8 },
         { x: 39176, y: 10600, z: 18, metatile: 8 },
+      ]);
+    });
+
+    it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
+      const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const request = {
+        items: [
+          {
+            area: boundingBoxToPolygon(BBOX2),
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'api',
+        force: true,
+      };
+
+      const jobId = await boss.send('tiles-requests-test-requests', request);
+
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      expect(result).not.toBeNull();
+
+      await boss.complete(result!.map((r) => r.id));
+      expect(result!.map((r) => r.data)).toContainSameTiles([
+        { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10595, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10596, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10595, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10596, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10597, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10597, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10598, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10599, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10598, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10599, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10600, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
       ]);
     });
 
@@ -709,6 +833,154 @@ describe('tiles', function () {
       expect(bboxResult).toBeNull();
       const currentRequestsQueueSize = await boss.getQueueSize('tiles-requests-test-requests');
       expect(currentRequestsQueueSize).toBe(1);
+    });
+  });
+
+  describe('tileRequestHandlerWithForce', () => {
+    let container: DependencyContainer;
+
+    beforeAll(async function () {
+      const [, depContainer] = await getApp({
+        useChild: true,
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  if (key === 'app') {
+                    return {
+                      projectName: 'test-requests',
+                      tilesBatchSize: 10,
+                      metatileSize: 8,
+                      enableRequestQueueHandling: true,
+                      requestQueueCheckIntervalSec: 1,
+                      consumeDelay: {
+                        enabled: false,
+                      },
+                      force: {
+                        api: true,
+                        expiredTiles: true,
+                      },
+                    };
+                  } else {
+                    return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
+        ],
+      });
+      container = depContainer;
+    });
+
+    beforeEach(async function () {
+      const boss = container.resolve(PgBoss);
+      await boss.clearStorage();
+    });
+
+    afterAll(async function () {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+    });
+
+    it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
+      const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const request = {
+        items: [
+          {
+            area: BBOX2,
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'expiredTiles',
+        state: 100,
+      };
+
+      const jobId = await boss.send('tiles-requests-test-requests', request);
+
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      expect(result).not.toBeNull();
+
+      await boss.complete(result!.map((r) => r.id));
+      expect(result!.map((r) => r.data)).toContainSameTiles([
+        { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10596, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10596, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10597, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10597, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10598, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10599, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10598, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10599, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39177, y: 10600, z: 18, metatile: 8, force: true, state: 100 },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true, state: 100 },
+      ]);
+    });
+
+    it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
+      const boss = container.resolve(PgBoss);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      provider.startQueue();
+      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const request = {
+        items: [
+          {
+            area: boundingBoxToPolygon(BBOX2),
+            minZoom: 18,
+            maxZoom: 18,
+          },
+        ],
+        source: 'api',
+      };
+
+      const jobId = await boss.send('tiles-requests-test-requests', request);
+
+      await waitForJobToBeResolved(boss, jobId as string);
+
+      provider.stopQueue();
+
+      await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      expect(result).not.toBeNull();
+
+      await boss.complete(result!.map((r) => r.id));
+      expect(result!.map((r) => r.data)).toContainSameTiles([
+        { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10595, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10596, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10595, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10596, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10597, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10597, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10598, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10599, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10598, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10599, z: 18, metatile: 8, force: true },
+        { x: 39177, y: 10600, z: 18, metatile: 8, force: true },
+        { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
+      ]);
     });
   });
 });
