@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/MapColonies/metatile-queue-populator/compare/v2.1.1...v2.2.0) (2024-08-13)
+
+
+### Features
+
+* detiler compitability ([#16](https://github.com/MapColonies/metatile-queue-populator/issues/16)) ([d217de2](https://github.com/MapColonies/metatile-queue-populator/commit/d217de2151ac8d4f77fc9da67ed06d9edc9a177f))
+
+
+### Bug Fixes
+
+* **deps:** updated detiler package version ([ebb7f2a](https://github.com/MapColonies/metatile-queue-populator/commit/ebb7f2ac71bf08f90b95aa5126b889b7ee870a24))
+
 ### [2.1.1](https://github.com/MapColonies/metatile-queue-populator/compare/v2.1.0...v2.1.1) (2023-11-27)
 
 
