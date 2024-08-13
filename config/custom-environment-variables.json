@@ -74,6 +74,16 @@
         "__name": "APP_CONSUME_DELAY_TILES_QUEUE_SIZE_LIMIT",
         "__format": "number"
       }
+    },
+    "force": {
+      "api": {
+        "__name": "FORCE_API",
+        "__format": "boolean"
+      },
+      "expiredTiles": {
+        "__name": "FORCE_EXPIRED_TILES",
+        "__format": "boolean"
+      }
     }
   },
   "queue": {

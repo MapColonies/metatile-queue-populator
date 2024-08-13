@@ -1,9 +1,9 @@
-import { Tile } from '@map-colonies/tile-calc';
+import { ExtendedTile } from '../src/tiles/models/tiles';
 
 declare global {
   namespace jest {
     interface Matchers<R> {
-      toContainSameTiles: (expectedTiles: Tile[]) => CustomMatcherResult;
+      toContainSameTiles: (expectedTiles: ExtendedTile[]) => CustomMatcherResult;
     }
   }
 }

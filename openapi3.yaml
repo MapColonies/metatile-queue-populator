@@ -11,6 +11,12 @@ paths:
     post:
       operationId: postTilesList
       summary: Add metatiles to the queue
+      parameters:
+        - in: query
+          name: force
+          description: force the request to be processed
+          schema:
+            $ref: '#/components/schemas/force'
       requestBody:
         content:
           application/json:
@@ -36,6 +42,12 @@ paths:
       summary: >-
         add the all the meta tiles in the given area and zoom range into the
         queue, area is a geojson or bbox
+      parameters:
+        - in: query
+          name: force
+          description: force the request to be processed
+          schema:
+            $ref: '#/components/schemas/force'
       requestBody:
         content:
           application/json:
@@ -303,3 +315,5 @@ components:
         anyOf:
           - $ref: '#/components/schemas/BboxTilesRequest'
           - $ref: '#/components/schemas/GeometryTilesRequest'
+    force:
+      type: boolean
