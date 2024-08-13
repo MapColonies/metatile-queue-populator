@@ -41,7 +41,7 @@
   "dependencies": {
     "@godaddy/terminus": "4.10.2",
     "@map-colonies/cleanup-registry": "^1.1.0",
-    "@map-colonies/detiler-common": "^1.0.0-rc2",
+    "@map-colonies/detiler-common": "^1.0.0",
     "@map-colonies/error-express-handler": "^2.1.0",
     "@map-colonies/express-access-log-middleware": "^1.0.0",
     "@map-colonies/js-logger": "^0.0.5",
