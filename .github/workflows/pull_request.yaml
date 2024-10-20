@@ -47,7 +47,7 @@ jobs:
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    container: node:16
+    container: node:16-bullseye
 
     strategy:
       matrix:
@@ -78,11 +78,13 @@ jobs:
 
       - name: Install pg client
         run: |
-          apt-get update && apt-get install -y lsb-release
-          sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+          apt-get update && apt-get install -y lsb-release curl ca-certificates
+          install -d /usr/share/postgresql-common/pgdg
+          curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           apt-get update
           apt-get install -y postgresql-client
+
       - name: Create schema
         run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
         env:
