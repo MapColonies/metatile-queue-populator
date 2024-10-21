@@ -64,7 +64,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       await this.pgBoss.complete(job.id);
     } catch (err) {
       const error = err as Error;
-      this.logger.error({ err: error, jobId: job.id });
+      this.logger.error({ err: error, jobId: job.id, job });
       await this.pgBoss.fail(job.id, error);
     } finally {
       this.runningJobs--;
@@ -81,15 +81,15 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
         continue;
       }
 
-      const job = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
+      const jobs = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
 
-      if (job === null || job.length === 0) {
+      if (jobs === null || jobs.length === 0) {
         this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
         await setTimeoutPromise(this.queueCheckTimeout);
         continue;
       }
 
-      yield job[0];
+      yield jobs[0];
 
       this.logger.info({ msg: 'next queue check after timeout', queueName: this.queueName, timeout: this.queueCheckTimeout });
       await setTimeoutPromise(this.queueCheckTimeout);
