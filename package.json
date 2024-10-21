@@ -1,6 +1,6 @@
 {
   "name": "metatile-queue-populator",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Service for adding metatiles to a queue based on variety of inputs",
   "main": "./src/index.ts",
   "scripts": {
