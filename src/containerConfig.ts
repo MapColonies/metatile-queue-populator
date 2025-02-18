@@ -1,4 +1,3 @@
-import config from 'config';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import { DependencyContainer, Lifecycle, instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
@@ -15,6 +14,7 @@ import { TilesManager } from './tiles/models/tilesManager';
 import { AppConfig, IConfig } from './common/interfaces';
 import { consumeAndPopulateFactory } from './requestConsumer';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
+import { getConfig } from './common/config';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -25,13 +25,15 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   const cleanupRegistry = new CleanupRegistry();
 
   try {
-    const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
+    const configInstance = getConfig();
+
+    const loggerConfig = configInstance.get('telemetry.logger');
     const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
 
     cleanupRegistry.on('itemFailed', (id, error, msg) => logger.error({ msg, itemId: id, err: error }));
     cleanupRegistry.on('finished', (status) => logger.info({ msg: `cleanup registry finished cleanup`, status }));
 
-    const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
+    const pgBoss = await pgBossFactory(configInstance.get('db'));
     cleanupRegistry.register({ func: pgBoss.stop.bind(pgBoss) });
     pgBoss.on('error', logger.error.bind(logger));
     await pgBoss.start();
@@ -40,7 +42,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
 
     const dependencies: InjectionObject<unknown>[] = [
-      { token: SERVICES.CONFIG, provider: { useValue: config } },
+      { token: SERVICES.CONFIG, provider: { useValue: configInstance } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
       {

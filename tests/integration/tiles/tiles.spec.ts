@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
@@ -18,6 +17,7 @@ import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
+import { getConfig, initConfig } from '../../../src/common/config';
 
 async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
@@ -36,6 +36,9 @@ describe('tiles', function () {
     let container: DependencyContainer;
 
     beforeAll(async function () {
+      await initConfig(true);
+      const config = getConfig();
+
       const [app, depContainer] = await getApp({
         useChild: true,
         override: [
@@ -347,6 +350,9 @@ describe('tiles', function () {
     let container: DependencyContainer;
 
     beforeAll(async function () {
+      await initConfig(true);
+      const config = getConfig();
+
       const [, depContainer] = await getApp({
         useChild: true,
         override: [
@@ -739,6 +745,9 @@ describe('tiles', function () {
     let container: DependencyContainer;
 
     beforeAll(async function () {
+      await initConfig(true);
+      const config = getConfig();
+
       const [, depContainer] = await getApp({
         useChild: true,
         override: [
@@ -840,6 +849,9 @@ describe('tiles', function () {
     let container: DependencyContainer;
 
     beforeAll(async function () {
+      await initConfig(true);
+      const config = getConfig();
+
       const [, depContainer] = await getApp({
         useChild: true,
         override: [
