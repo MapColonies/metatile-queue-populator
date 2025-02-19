@@ -1,13 +1,74 @@
 {
-  "db": {
-    "host": "localhost",
-    "schema": "public",
-    "username": "postgres",
-    "password": "postgres",
-    "database": "postgres",
-    "enableSslAuth": false
+  "openapiConfig": {
+    "filePath": "./openapi3.yaml",
+    "basePath": "/docs",
+    "rawPath": "/api",
+    "uiPath": "/api"
+  },
+  "telemetry": {
+    "logger": {
+      "level": "info",
+      "prettyPrint": false
+    },
+    "shared": {},
+    "tracing": {
+      "isEnabled": false
+    },
+    "metrics": {
+      "enabled": true,
+      "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 50, 250, 500]
+    }
+  },
+  "server": {
+    "port": 8080,
+    "request": {
+      "payload": {
+        "limit": "1mb"
+      }
+    },
+    "response": {
+      "compression": {
+        "enabled": true,
+        "options": null
+      }
+    }
   },
   "app": {
-    "requestQueueCheckIntervalSec": 1
+    "projectName": "default",
+    "enableRequestQueueHandling": true,
+    "requestQueueCheckIntervalSec": 1,
+    "tilesBatchSize": 10000,
+    "metatileSize": 8,
+    "consumeDelay": {
+      "enabled": false,
+      "delaySec": 1
+    },
+    "force": {
+      "api": false,
+      "expiredTiles": false
+    }
+  },
+  "queue": {
+    "expireInSeconds": 600,
+    "retryBackoff": true,
+    "retryLimit": 3,
+    "retryDelaySeconds": 60,
+    "retentionHours": 87660
+  },
+  "db": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "postgres",
+    "ssl": {
+      "enabled": false
+    },
+    "database": "postgres",
+    "schema": "public"
+  },
+  "objectStorage": {
+    "protocol": "http",
+    "host": "some_object_storage_host",
+    "port": 9000
   }
 }

@@ -10,13 +10,17 @@
       "level": "info",
       "prettyPrint": false
     },
+    "shared": {},
+    "tracing": {
+      "isEnabled": false
+    },
     "metrics": {
       "enabled": true,
       "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 50, 250, 500]
     }
   },
   "server": {
-    "port": "8080",
+    "port": 8080,
     "request": {
       "payload": {
         "limit": "1mb"
@@ -32,11 +36,12 @@
   "app": {
     "projectName": "default",
     "enableRequestQueueHandling": true,
-    "requestQueueCheckIntervalSec": 30,
+    "requestQueueCheckIntervalSec": 1,
     "tilesBatchSize": 10000,
     "metatileSize": 8,
     "consumeDelay": {
-      "enabled": false
+      "enabled": false,
+      "delaySec": 1
     },
     "force": {
       "api": false,
@@ -53,15 +58,17 @@
   "db": {
     "host": "localhost",
     "port": 5432,
-    "user": "postgres",
+    "username": "postgres",
     "password": "postgres",
-    "schema": "pgboss",
-    "enableSslAuth": false,
-    "sslPaths": {
-      "ca": "",
-      "key": "",
-      "cert": ""
+    "ssl": {
+      "enabled": false
     },
-    "database": "postgres"
+    "database": "postgres",
+    "schema": "public"
+  },
+  "objectStorage": {
+    "protocol": "http",
+    "host": "some_object_storage_host",
+    "port": 9000
   }
 }
