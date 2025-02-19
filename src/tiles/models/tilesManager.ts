@@ -6,10 +6,11 @@ import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
 import { inject, Lifecycle, scoped } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
-import { Feature } from '@turf/turf';
+import { Feature } from '@turf/helpers';
 import { snakeCase } from 'snake-case';
+import { ConfigType } from '@src/common/config';
 import { SERVICES } from '../../common/constants';
-import { AppConfig, IConfig, JobInsertConfig, QueueConfig } from '../../common/interfaces';
+import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
@@ -34,19 +35,21 @@ export class TilesManager {
 
   public constructor(
     private readonly pgboss: PgBoss,
-    @inject(SERVICES.CONFIG) config: IConfig,
+    @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(SERVICES.METRICS_REGISTRY) registry?: client.Registry
   ) {
-    const appConfig = config.get<AppConfig>('app');
+    const appConfig = config.get('app');
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.tilesQueueName = `${TILES_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.batchSize = appConfig.tilesBatchSize;
     this.metatile = appConfig.metatileSize;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     this.shouldForceApiTiles = appConfig.force?.api;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     this.shouldForceExpiredTiles = appConfig.force?.expiredTiles;
 
-    const { retryDelaySeconds, ...queueConfig } = config.get<QueueConfig>('queue');
+    const { retryDelaySeconds, ...queueConfig } = config.get('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
 
     this.logger.info({
@@ -101,7 +104,7 @@ export class TilesManager {
       this.populateHistogram = new client.Histogram({
         name: 'metatile_queue_populator_population_seconds',
         help: 'metatile-queue-populator population duration by source',
-        buckets: config.get<number[]>('telemetry.metrics.buckets'),
+        buckets: config.get('telemetry.metrics.buckets'),
         labelNames: ['source'] as const,
         registers: [registry],
       });

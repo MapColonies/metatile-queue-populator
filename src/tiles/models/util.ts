@@ -1,5 +1,6 @@
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Feature, Polygon, bbox as geojsonToBbox } from '@turf/turf';
+import { Feature, Polygon } from '@turf/helpers';
+import geojsonToBbox from '@turf/bbox';
 import isGeojson from '@turf/boolean-valid';
 
 export const stringifyTile = (tile: Tile & { state?: number; force?: boolean }): string => {

@@ -1,5 +1,5 @@
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Feature, FeatureCollection } from '@turf/turf';
+import { Feature, FeatureCollection } from '@turf/helpers';
 
 interface BaseTilesRequest {
   minZoom: number;
