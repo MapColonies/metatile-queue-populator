@@ -8,16 +8,17 @@ import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
 import { Registry } from 'prom-client';
-import { bbox, FeatureCollection } from '@turf/turf';
+import { FeatureCollection } from '@turf/helpers';
+import bbox from '@turf/bbox';
 import { getApp } from '../../../src/app';
 import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
+import { getConfig, initConfig } from '../../../src/common/config';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
-import { getConfig, initConfig } from '../../../src/common/config';
 
 async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
@@ -203,7 +204,7 @@ describe('tiles', function () {
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
           const message = (response.body as { message: string }).message;
-          expect(message).toContain('request.body.minZoom should be >= 0');
+          expect(message).toContain('request/body/minZoom must be >= 0');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -291,7 +292,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList({} as []);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should be array');
+          expect(response.body).toHaveProperty('message', 'request/body must be array');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -299,7 +300,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should NOT have fewer than 1 items');
+          expect(response.body).toHaveProperty('message', 'request/body must NOT have fewer than 1 items');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -307,7 +308,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([{ x: 0, y: 0 } as Tile]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', "request.body[0] should have required property 'z'");
+          expect(response.body).toHaveProperty('message', "request/body/0 must have required property 'z'");
           expect(response).toSatisfyApiSpec();
         });
 

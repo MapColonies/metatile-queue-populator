@@ -1,12 +1,12 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
+import { ConfigType } from '@src/common/config';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
-import { IConfig } from '../../../../src/common/interfaces';
 
 describe('PgBossJobQueueProvider', () => {
   let provider: PgBossJobQueueProvider;
-  let configMock: IConfig;
+  let configMock: ConfigType;
   let pgbossMock: {
     on: jest.Mock;
     start: jest.Mock;
@@ -41,7 +41,10 @@ describe('PgBossJobQueueProvider', () => {
             break;
         }
       }),
-      has: jest.fn(),
+      getAll: jest.fn(),
+      getConfigParts: jest.fn(),
+      getResolvedOptions: jest.fn(),
+      initializeMetrics: jest.fn(),
     };
   });
 

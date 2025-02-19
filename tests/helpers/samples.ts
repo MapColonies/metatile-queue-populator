@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 import { BoundingBox } from '@map-colonies/tile-calc';
-import { Feature } from '@turf/turf';
+import { Feature } from '@turf/helpers';
 
 export const BBOX1: BoundingBox = { west: 35.20076259970665, south: 31.770502933414285, east: 35.20134598016739, north: 31.77073210500818 };
 

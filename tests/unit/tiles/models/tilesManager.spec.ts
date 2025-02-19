@@ -3,9 +3,10 @@ import { faker } from '@faker-js/faker';
 import { Tile } from '@map-colonies/tile-calc';
 import PgBoss from 'pg-boss';
 import client from 'prom-client';
-import { bbox, FeatureCollection } from '@turf/turf';
+import bbox from '@turf/bbox';
+import { FeatureCollection } from '@turf/helpers';
 import { API_STATE } from '@map-colonies/detiler-common';
-import { IConfig } from '../../../../src/common/interfaces';
+import { ConfigType } from '@src/common/config';
 import { RequestAlreadyInQueueError } from '../../../../src/tiles/models/errors';
 import { TileRequestQueuePayload, TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
 import { TilesManager } from '../../../../src/tiles/models/tilesManager';
@@ -17,10 +18,14 @@ const logger = jsLogger({ enabled: false });
 const queueConfig = { retryDelay: 1 };
 
 describe('tilesManager', () => {
-  let configMock: jest.Mocked<IConfig>;
+  let configMock: jest.Mocked<ConfigType>;
 
   beforeEach(() => {
     configMock = {
+      getAll: jest.fn(),
+      getConfigParts: jest.fn(),
+      getResolvedOptions: jest.fn(),
+      initializeMetrics: jest.fn(),
       get: jest.fn().mockImplementation((key: string) => {
         switch (key) {
           case 'app':
@@ -39,7 +44,6 @@ describe('tilesManager', () => {
             break;
         }
       }),
-      has: jest.fn(),
     };
   });
 

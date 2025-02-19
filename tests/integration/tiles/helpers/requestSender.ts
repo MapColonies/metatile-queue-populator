@@ -1,9 +1,10 @@
 import { Tile } from '@map-colonies/tile-calc';
 import * as supertest from 'supertest';
+import { Application } from 'express';
 import { TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
 
 export class TilesRequestSender {
-  public constructor(private readonly app: Express.Application) {}
+  public constructor(private readonly app: Application) {}
 
   public async postTilesByAreaRequest(request: TilesByAreaRequest | TilesByAreaRequest[], force?: boolean): Promise<supertest.Response> {
     return supertest.agent(this.app).post('/tiles/area').set('Content-Type', 'application/json').send(request).query({ force });
