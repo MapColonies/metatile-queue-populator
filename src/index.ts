@@ -12,7 +12,6 @@ import { ConfigType } from './common/config';
 
 let depContainer: DependencyContainer | undefined;
 
-
 void getApp()
   .then(async ([app, container]) => {
     depContainer = container;

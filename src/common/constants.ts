@@ -16,7 +16,7 @@ export const SERVICES: Record<string, symbol> = {
   LOGGER: Symbol('Logger'),
   CONFIG: Symbol('Config'),
   TRACER: Symbol('Tracer'),
-  METER: Symbol('Meter'),
+  METRICS: Symbol('Metrics'),
   METRICS_REGISTRY: Symbol('MetricsRegistry'),
   CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
 };

@@ -15,7 +15,10 @@ type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[
 
 @injectable()
 export class TilesController {
-  public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly manager: TilesManager) {}
+  public constructor(
+    @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    private readonly manager: TilesManager
+  ) {}
 
   public postTilesByArea: PostTilesByAreaHandler = async (req, res, next) => {
     const arealRequest = Array.isArray(req.body) ? req.body : [req.body];

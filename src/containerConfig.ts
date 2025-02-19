@@ -1,20 +1,18 @@
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import { DependencyContainer, Lifecycle, instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
+import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
 import client from 'prom-client';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK_SYMBOL, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from './common/constants';
-import { tracing } from './common/tracing';
 import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { DbConfig, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
+import { pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TilesManager } from './tiles/models/tilesManager';
-import { AppConfig, IConfig } from './common/interfaces';
 import { consumeAndPopulateFactory } from './requestConsumer';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
-import { getConfig } from './common/config';
+import { ConfigType, getConfig } from './common/config';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -33,14 +31,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     cleanupRegistry.on('itemFailed', (id, error, msg) => logger.error({ msg, itemId: id, err: error }));
     cleanupRegistry.on('finished', (status) => logger.info({ msg: `cleanup registry finished cleanup`, status }));
 
-    const pgBoss = await pgBossFactory(configInstance.get('db'));
+    const pgBoss = pgBossFactory(configInstance.get('db'));
     cleanupRegistry.register({ func: pgBoss.stop.bind(pgBoss) });
     pgBoss.on('error', logger.error.bind(logger));
     await pgBoss.start();
 
     const tracer = trace.getTracer(SERVICE_NAME);
-    cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
-
     const dependencies: InjectionObject<unknown>[] = [
       { token: SERVICES.CONFIG, provider: { useValue: configInstance } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
@@ -49,10 +45,10 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: SERVICES.METRICS_REGISTRY,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const appConfig = config.get<AppConfig>('app');
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const appConfig = config.get('app');
 
-            if (config.get<boolean>('telemetry.metrics.enabled')) {
+            if (config.get('telemetry.metrics.enabled')) {
               client.register.setDefaultLabels({
                 project: appConfig.projectName,
                 metatileSize: appConfig.metatileSize,
