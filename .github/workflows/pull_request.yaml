@@ -61,7 +61,7 @@ jobs:
         env:
           POSTGRES_DB: postgres
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 1234
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         # Set health checks to wait until postgres has started
@@ -88,7 +88,7 @@ jobs:
       - name: Create schema
         run: psql -h localhost -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
         env:
-          PGPASSWORD: 1234
+          PGPASSWORD: postgres
 
       - name: Set up Node.js
         uses: actions/setup-node@v1
