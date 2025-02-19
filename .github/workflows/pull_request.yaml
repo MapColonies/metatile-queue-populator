@@ -9,18 +9,18 @@ jobs:
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v1
+        uses: ./.github/actions/init-npm
         with:
-          node-version: 16
+          node-version: ${{ matrix.node }}
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run linters
-        uses: wearerequired/lint-action@v1
+        uses: wearerequired/lint-action@v2
         with:
           github_token: ${{ secrets.github_token }}
           # Enable linters
@@ -47,11 +47,10 @@ jobs:
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    container: node:16-bullseye
 
     strategy:
       matrix:
-        node: [16.x]
+        node: [20.x, 22.x]
 
     services:
       # Label used to access the service container
@@ -74,7 +73,7 @@ jobs:
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install pg client
         run: |
