@@ -86,7 +86,7 @@ jobs:
         shell: bash
 
       - name: Create schema
-        run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
+        run: psql -h localhost -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
         env:
           PGPASSWORD: 1234
 
