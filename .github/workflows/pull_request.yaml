@@ -1,26 +1,34 @@
 name: pull_request
 
-on: [pull_request]
+on: [pull_request, workflow_dispatch]
+env:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_NAME: postgres
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
+  DB_SCHEMA: public
 
 jobs:
   eslint:
-    name: Run eslint
+    name: Run TS Project eslint
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node: [20.x, 22.x]
+
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
+      - name: Check out TS Project Git repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v1
+      - name: Init nodejs
+        uses: ./.github/actions/init-npm
         with:
-          node-version: 16
+          node-version: ${{ matrix.node }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linters
-        uses: wearerequired/lint-action@v1
+      - name: Run TS Project linters
+        uses: wearerequired/lint-action@v2
         with:
           github_token: ${{ secrets.github_token }}
           # Enable linters
@@ -28,44 +36,23 @@ jobs:
           prettier: true
           eslint_extensions: ts
 
-      - name: OpenAPI Lint Checks
-        uses: nwestfall/openapi-action@v1.0.2
-        with:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
-         file: ./openapi3.yaml
-
-  security:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Run Snyk to check for vulnerabilities
-      uses: snyk/actions/node@master
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    container: node:16-bullseye
 
     strategy:
       matrix:
-        node: [16.x]
+        node: [20.x, 22.x]
 
     services:
-      # Label used to access the service container
       postgres:
-        # Docker Hub image
-        image: postgres:13
-        # Provide the password for postgres
+        image: postgres:14
         env:
-          POSTGRES_DB: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 1234
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_USER: ${{ env.DB_USERNAME }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
         ports:
           - 5432:5432
-        # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -73,38 +60,29 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
+      - name: Check out TS Project Git repository
+        uses: actions/checkout@v4
 
-      - name: Install pg client
-        run: |
-          apt-get update && apt-get install -y lsb-release curl ca-certificates
-          install -d /usr/share/postgresql-common/pgdg
-          curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          apt-get update
-          apt-get install -y postgresql-client
-
-      - name: Create schema
-        run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
-        env:
-          PGPASSWORD: 1234
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node }}
-
-      - name: Install Node.js dependencies
-        run: npm ci
+      - name: Init nodejs
+        uses: ./.github/actions/init-npm
 
       - name: Run tests
         run: npm run test
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Test Reporters
-          path: reports/**
+          name: Test Reporters ${{ matrix.node }}
+          path: ./reports/**
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   build_image:
     name: Build Image
