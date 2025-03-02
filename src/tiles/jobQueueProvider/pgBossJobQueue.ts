@@ -2,8 +2,8 @@ import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import { Logger } from '@map-colonies/js-logger';
 import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
+import { ConfigType } from '@src/common/config';
 import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
-import { AppConfig, IConfig } from '../../common/interfaces';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
 import { JobQueueProvider } from './intefaces';
 
@@ -17,14 +17,14 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private runningJobs = 0;
 
   public constructor(
-    private readonly pgBoss: PgBoss,
-    @inject(SERVICES.CONFIG) config: IConfig,
+    @inject(PgBoss) private readonly pgBoss: PgBoss,
+    @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {
-    const appConfig = config.get<AppConfig>('app');
+    const appConfig = config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
-    this.queueDelayTimeout = appConfig.consumeDelay.delaySec * MILLISECONDS_IN_SECOND;
+    this.queueDelayTimeout = (appConfig.consumeDelay.delaySec || 0) * MILLISECONDS_IN_SECOND;
   }
 
   public get activeQueueName(): string {
