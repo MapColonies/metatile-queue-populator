@@ -1,5 +1,6 @@
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Feature, Polygon, bbox as geojsonToBbox } from '@turf/turf';
+import { Feature, Polygon } from 'geojson';
+import { bbox as geojsonToBbox } from '@turf/turf';
 import isGeojson from '@turf/boolean-valid';
 
 export const stringifyTile = (tile: Tile & { state?: number; force?: boolean }): string => {
@@ -28,7 +29,7 @@ export const boundingBoxToPolygon = (bbox: BoundingBox): Feature<Polygon> => {
 
 export const areaToBoundingBox = (area: BoundingBox | Feature): { bbox: BoundingBox; fromGeojson: boolean } => {
   if (isGeojson(area as Feature)) {
-    const bboxArr = geojsonToBbox(area);
+    const bboxArr = geojsonToBbox(area as Feature);
     const [west, south, east, north] = bboxArr;
     return { bbox: { west, south, east, north }, fromGeojson: true };
   }
