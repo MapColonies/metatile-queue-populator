@@ -1,20 +1,18 @@
-import config from 'config';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
-import { DependencyContainer, Lifecycle, instanceCachingFactory, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
+import jsLogger, { Logger } from '@map-colonies/js-logger';
+import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
+import { JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import { getTracing } from '@common/tracing';
+import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK_SYMBOL, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from './common/constants';
-import { tracing } from './common/tracing';
-import { tilesRouterFactory, TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
-import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { DbConfig, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
-import { TilesManager } from './tiles/models/tilesManager';
-import { AppConfig, IConfig } from './common/interfaces';
-import { consumeAndPopulateFactory } from './requestConsumer';
+import { DependencyContainer, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
+import PgBoss from 'pg-boss';
+import { pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
+import { TILES_ROUTER, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
+import { TilesManager } from './tiles/models/tilesManager';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -25,56 +23,52 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   const cleanupRegistry = new CleanupRegistry();
 
   try {
-    const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-    const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
-
-    cleanupRegistry.on('itemFailed', (id, error, msg) => logger.error({ msg, itemId: id, err: error }));
-    cleanupRegistry.on('finished', (status) => logger.info({ msg: `cleanup registry finished cleanup`, status }));
-
-    const pgBoss = await pgBossFactory(config.get<DbConfig>('db'));
-    cleanupRegistry.register({ func: pgBoss.stop.bind(pgBoss) });
-    pgBoss.on('error', logger.error.bind(logger));
-    await pgBoss.start();
-
-    const tracer = trace.getTracer(SERVICE_NAME);
-    cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
-
     const dependencies: InjectionObject<unknown>[] = [
-      { token: SERVICES.CONFIG, provider: { useValue: config } },
-      { token: SERVICES.LOGGER, provider: { useValue: logger } },
-      { token: SERVICES.TRACER, provider: { useValue: tracer } },
-      {
-        token: SERVICES.METRICS_REGISTRY,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const appConfig = config.get<AppConfig>('app');
-
-            if (config.get<boolean>('telemetry.metrics.enabled')) {
-              client.register.setDefaultLabels({
-                project: appConfig.projectName,
-                metatileSize: appConfig.metatileSize,
-                handlingRequestQueue: appConfig.enableRequestQueueHandling,
-              });
-              return client.register;
-            }
-          }),
-        },
-      },
-      { token: PgBoss, provider: { useValue: pgBoss } },
-      {
-        token: HEALTHCHECK_SYMBOL,
-        provider: {
-          useFactory: instanceCachingFactory((container) => {
-            const tilesManager = container.resolve(TilesManager);
-            return tilesManager.isAlive.bind(tilesManager);
-          }),
-        },
-      },
-      { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
+      { token: SERVICES.CONFIG, provider: { useValue: getConfig() } },
       {
         token: SERVICES.CLEANUP_REGISTRY,
         provider: { useValue: cleanupRegistry },
+        afterAllInjectionHook(container): void {
+          const logger = container.resolve<Logger>(SERVICES.LOGGER);
+          const cleanupRegistryLogger = logger.child({ subComponent: 'cleanupRegistry' });
+
+          cleanupRegistry.on('itemFailed', (id, error, msg) => cleanupRegistryLogger.error({ msg, itemId: id, err: error }));
+          cleanupRegistry.on('itemCompleted', (id) => cleanupRegistryLogger.info({ itemId: id, msg: 'cleanup finished for item' }));
+          cleanupRegistry.on('finished', (status) => cleanupRegistryLogger.info({ msg: `cleanup registry finished cleanup`, status }));
+        },
+      },
+      {
+        token: SERVICES.LOGGER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const loggerConfig = config.get('telemetry.logger');
+            const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
+            return logger;
+          }),
+        },
+      },
+      {
+        token: SERVICES.TRACER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+            cleanupRegistry.register({ id: SERVICES.TRACER, func: getTracing().stop.bind(getTracing()) });
+            const tracer = trace.getTracer(SERVICE_NAME);
+            return tracer;
+          }),
+        },
+      },
+      {
+        token: SERVICES.METRICS,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const metricsRegistry = new Registry();
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            config.initializeMetrics(metricsRegistry);
+            return metricsRegistry;
+          }),
+        },
       },
       {
         token: ON_SIGNAL,
@@ -83,14 +77,41 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       {
+        token: TilesManager,
+        provider: {
+          useClass: TilesManager,
+        },
+        options: { lifecycle: Lifecycle.Singleton },
+      },
+      {
+        token: PgBoss,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const dbConfig = config.get('db');
+            const pgBoss = pgBossFactory(dbConfig);
+
+            const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+            cleanupRegistry.register({ func: pgBoss.stop.bind(pgBoss) });
+
+            return pgBoss;
+          }),
+        },
+        postInjectionHook: async (container): Promise<void> => {
+          const pgBoss = container.resolve<PgBoss>(PgBoss);
+          await pgBoss.start();
+        },
+      },
+      { token: TILES_ROUTER, provider: { useFactory: tilesRouterFactory } },
+      {
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },
         options: { lifecycle: Lifecycle.Singleton },
       },
-      { token: CONSUME_AND_POPULATE_FACTORY, provider: { useFactory: consumeAndPopulateFactory } },
     ];
 
-    return registerDependencies(dependencies, options?.override, options?.useChild);
+    const container = await registerDependencies(dependencies, options?.override, options?.useChild);
+    return container;
   } catch (error) {
     await cleanupRegistry.trigger();
     throw error;
