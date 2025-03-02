@@ -1,11 +1,13 @@
 {
   "db": {
-    "host": "postgres",
+    "host": "localhost",
     "schema": "public",
     "username": "postgres",
-    "password": "1234",
+    "password": "postgres",
     "database": "postgres",
-    "enableSslAuth": false
+    "ssl": {
+      "enabled": false
+    }
   },
   "app": {
     "requestQueueCheckIntervalSec": 1
