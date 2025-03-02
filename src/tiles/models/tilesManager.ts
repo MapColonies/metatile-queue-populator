@@ -1,22 +1,23 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import { Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { API_STATE } from '@map-colonies/detiler-common';
 import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
-import { inject, Lifecycle, scoped } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
-import { Feature } from '@turf/turf';
+import { Feature } from 'geojson';
+import { ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
 import { SERVICES } from '../../common/constants';
-import { AppConfig, IConfig, JobInsertConfig, QueueConfig } from '../../common/interfaces';
+import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
 import { areaToBoundingBox, boundingBoxToPolygon, stringifyTile } from './util';
 
-@scoped(Lifecycle.ContainerScoped)
+@injectable()
 export class TilesManager {
   public readonly requestQueueName: string;
   public readonly tilesQueueName: string;
@@ -28,25 +29,25 @@ export class TilesManager {
 
   private readonly batchSize: number;
   private readonly metatile: number;
-  private readonly shouldForceApiTiles?: boolean;
-  private readonly shouldForceExpiredTiles?: boolean;
+  private readonly shouldForceApiTiles: boolean;
+  private readonly shouldForceExpiredTiles: boolean;
   private readonly baseQueueConfig: JobInsertConfig;
 
   public constructor(
-    private readonly pgboss: PgBoss,
-    @inject(SERVICES.CONFIG) config: IConfig,
+    @inject(PgBoss) private readonly pgboss: PgBoss,
+    @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(SERVICES.METRICS_REGISTRY) registry?: client.Registry
+    @inject(SERVICES.METRICS) registry?: client.Registry
   ) {
-    const appConfig = config.get<AppConfig>('app');
+    const appConfig = config.get('app');
     this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.tilesQueueName = `${TILES_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.batchSize = appConfig.tilesBatchSize;
     this.metatile = appConfig.metatileSize;
-    this.shouldForceApiTiles = appConfig.force?.api;
-    this.shouldForceExpiredTiles = appConfig.force?.expiredTiles;
+    this.shouldForceApiTiles = appConfig.force.api;
+    this.shouldForceExpiredTiles = appConfig.force.expiredTiles;
 
-    const { retryDelaySeconds, ...queueConfig } = config.get<QueueConfig>('queue');
+    const { retryDelaySeconds, ...queueConfig } = config.get('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
 
     this.logger.info({
@@ -101,7 +102,7 @@ export class TilesManager {
       this.populateHistogram = new client.Histogram({
         name: 'metatile_queue_populator_population_seconds',
         help: 'metatile-queue-populator population duration by source',
-        buckets: config.get<number[]>('telemetry.metrics.buckets'),
+        buckets: config.get('telemetry.metrics.buckets'),
         labelNames: ['source'] as const,
         registers: [registry],
       });
@@ -124,7 +125,7 @@ export class TilesManager {
       }),
       source: 'api',
       state: API_STATE,
-      force: this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force,
+      force: this.shouldForceApiTiles ? this.shouldForceApiTiles : force,
     };
 
     const key = hashValue(payload);
@@ -147,7 +148,7 @@ export class TilesManager {
     const tileJobsArr = tiles.map((tile) => ({
       ...this.baseQueueConfig,
       name: this.tilesQueueName,
-      data: { ...tile, parent: requestId, state: API_STATE, force: this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force },
+      data: { ...tile, parent: requestId, state: API_STATE, force: this.shouldForceApiTiles ? this.shouldForceApiTiles : force },
     }));
     await this.populateTilesQueue(tileJobsArr, 'api');
   }
@@ -191,7 +192,7 @@ export class TilesManager {
       data: { items, state, force },
       id,
     } = job;
-    const isTileForced = this.shouldForceApiTiles === true ? this.shouldForceApiTiles : force;
+    const isTileForced = this.shouldForceApiTiles ? this.shouldForceApiTiles : force;
 
     let tileArr: JobInsert<TileQueuePayload>[] = [];
 
@@ -226,7 +227,7 @@ export class TilesManager {
       data: { items, state, force },
       id,
     } = job;
-    const isTileForced = this.shouldForceExpiredTiles === true ? this.shouldForceExpiredTiles : force;
+    const isTileForced = this.shouldForceExpiredTiles ? this.shouldForceExpiredTiles : force;
 
     const tileMap = new Map<string, JobInsert<TileQueuePayload>>();
 
