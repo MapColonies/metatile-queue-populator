@@ -22,7 +22,7 @@ lint:
 
   rules:
     boolean-parameter-prefixes:
-      severity: warn
+      severity: error
       prefixes: ['should', 'is', 'has']
     no-unused-components:
       severity: error
