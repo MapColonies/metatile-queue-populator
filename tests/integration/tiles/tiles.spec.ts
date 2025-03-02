@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
-import { Registry } from 'prom-client';
-import { bbox, FeatureCollection } from '@turf/turf';
+import { type vectorMetatileQueuePopulatorV1Type } from '@map-colonies/schemas';
+import { type FeatureCollection } from 'geojson';
+import { bbox } from '@turf/turf';
+import { ConfigType, getConfig, initConfig } from '@src/common/config';
 import { getApp } from '../../../src/app';
 import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
@@ -31,6 +32,13 @@ async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBo
 }
 
 describe('tiles', function () {
+  let config: ConfigType;
+
+  beforeAll(async function () {
+    await initConfig(true);
+    config = getConfig();
+  });
+
   describe('api', () => {
     let requestSender: TilesRequestSender;
     let container: DependencyContainer;
@@ -43,17 +51,21 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'app-api',
                       enableRequestQueueHandling: false,
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
@@ -200,7 +212,7 @@ describe('tiles', function () {
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
           const message = (response.body as { message: string }).message;
-          expect(message).toContain('request.body.minZoom should be >= 0');
+          expect(message).toContain('request/body/minZoom must be >= 0');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -288,7 +300,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList({} as []);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should be array');
+          expect(response.body).toHaveProperty('message', 'request/body must be array');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -296,7 +308,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should NOT have fewer than 1 items');
+          expect(response.body).toHaveProperty('message', 'request/body must NOT have fewer than 1 items');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -304,7 +316,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([{ x: 0, y: 0 } as Tile]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', "request.body[0] should have required property 'z'");
+          expect(response.body).toHaveProperty('message', "request/body/0 must have required property 'z'");
           expect(response).toSatisfyApiSpec();
         });
 
@@ -354,9 +366,10 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
@@ -365,17 +378,19 @@ describe('tiles', function () {
                       consumeDelay: {
                         enabled: false,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
@@ -746,9 +761,10 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
@@ -759,17 +775,19 @@ describe('tiles', function () {
                         delaySec: 1,
                         tilesQueueSizeLimit: 2,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
@@ -847,9 +865,10 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
@@ -862,17 +881,19 @@ describe('tiles', function () {
                         api: true,
                         expiredTiles: true,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
