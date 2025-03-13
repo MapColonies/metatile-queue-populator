@@ -1,6 +1,5 @@
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
-import { HealthCheck } from '@godaddy/terminus';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
@@ -10,7 +9,7 @@ import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
 import PgBoss from 'pg-boss';
-import { pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
+import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
@@ -79,7 +78,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         options: { lifecycle: Lifecycle.Singleton },
       },
       {
-        token: PgBoss,
+        token: PGBOSS_PROVIDER,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
             const config = container.resolve<ConfigType>(SERVICES.CONFIG);
@@ -93,7 +92,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           }),
         },
         postInjectionHook: async (container): Promise<void> => {
-          const pgBoss = container.resolve<PgBoss>(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
           await pgBoss.start();
         },
       },

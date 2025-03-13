@@ -26,3 +26,5 @@ export const pgBossFactory = (dbConfig: DbConfig): PgBoss => {
   const databaseOptions = createDatabaseOptions(dbConfig);
   return new PgBoss({ ...databaseOptions, noScheduling: true, noSupervisor: true, uuid: 'v4' });
 };
+
+export const PGBOSS_PROVIDER = Symbol('PgBoss');

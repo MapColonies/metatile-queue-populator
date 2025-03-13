@@ -6,11 +6,12 @@ import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue'
 import { TileRequestQueuePayload } from './tiles/models/tiles';
 import { TilesManager } from './tiles/models/tilesManager';
 import { ConfigType } from './common/config';
+import { PGBOSS_PROVIDER } from './tiles/jobQueueProvider/pgbossFactory';
 
 export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (container) => {
   const logger = container.resolve<Logger>(SERVICES.LOGGER);
   const config = container.resolve<ConfigType>(SERVICES.CONFIG);
-  const pgBoss = container.resolve(PgBoss);
+  const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
   const queueProv = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
   const tilesManager = container.resolve(TilesManager);
   const appConfig = config.get('app');

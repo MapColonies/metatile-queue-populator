@@ -10,13 +10,14 @@ import { Tile } from '@map-colonies/tile-calc';
 import { type vectorMetatileQueuePopulatorV1Type } from '@map-colonies/schemas';
 import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
-import { ConfigType, getConfig, initConfig } from '@src/common/config';
+import { ConfigType, getConfig, initConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
 import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
+import { PGBOSS_PROVIDER } from '../../../src/tiles/jobQueueProvider/pgbossFactory';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
 
@@ -333,7 +334,7 @@ describe('tiles', function () {
     describe('Sad Path', function () {
       describe('POST /tiles/area', function () {
         it('should return 500 if the queue is not available', async function () {
-          const boss = container.resolve(PgBoss);
+          const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
           jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
 
           const bbox = getBbox();
@@ -345,7 +346,7 @@ describe('tiles', function () {
 
       describe('POST /tiles/list', function () {
         it('should return 500 if the queue is not available', async function () {
-          const boss = container.resolve(PgBoss);
+          const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
           jest.spyOn(boss, 'insert').mockRejectedValueOnce(new Error('failed'));
 
           const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
@@ -397,7 +398,7 @@ describe('tiles', function () {
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -407,7 +408,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -454,7 +455,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -503,7 +504,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -550,7 +551,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -598,7 +599,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the api bbox request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -645,7 +646,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the api multi areal request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -698,7 +699,7 @@ describe('tiles', function () {
     });
 
     it('should filter out non intersected tiles for geojson request', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -794,7 +795,7 @@ describe('tiles', function () {
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -804,7 +805,7 @@ describe('tiles', function () {
     });
 
     it('should delay the consumption of the requests queue if tiles queue is overflowing', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -900,7 +901,7 @@ describe('tiles', function () {
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -910,7 +911,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
@@ -958,7 +959,7 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
       const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();

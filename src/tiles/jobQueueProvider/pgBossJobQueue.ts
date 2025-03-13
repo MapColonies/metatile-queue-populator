@@ -6,6 +6,7 @@ import { ConfigType } from '@src/common/config';
 import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
 import { JobQueueProvider } from './intefaces';
+import { PGBOSS_PROVIDER } from './pgbossFactory';
 
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
@@ -17,7 +18,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private runningJobs = 0;
 
   public constructor(
-    @inject(PgBoss) private readonly pgBoss: PgBoss,
+    @inject(PGBOSS_PROVIDER) private readonly pgBoss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {

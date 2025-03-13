@@ -12,6 +12,7 @@ import { snakeCase } from 'snake-case';
 import { SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
+import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
 import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
@@ -34,7 +35,7 @@ export class TilesManager {
   private readonly baseQueueConfig: JobInsertConfig;
 
   public constructor(
-    @inject(PgBoss) private readonly pgboss: PgBoss,
+    @inject(PGBOSS_PROVIDER) private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(SERVICES.METRICS) registry?: client.Registry
