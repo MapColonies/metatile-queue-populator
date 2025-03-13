@@ -12,7 +12,7 @@ import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
 import { ConfigType, getConfig, initConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
-import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
@@ -411,7 +411,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -458,7 +459,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -507,7 +509,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -554,7 +557,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -602,7 +606,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -649,7 +654,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -702,7 +708,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const [west, south, east, north] = bbox(GOOD_LARGE_FEATURE);
       const boundingBox = { west, south, east, north };
@@ -808,7 +815,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request1 = {
         items: [
@@ -914,7 +922,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -962,7 +971,8 @@ describe('tiles', function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
