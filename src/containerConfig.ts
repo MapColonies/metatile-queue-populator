@@ -1,16 +1,17 @@
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
+import { HealthCheck } from '@godaddy/terminus';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import { HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
-import { TILES_ROUTER, tilesRouterFactory } from './tiles/routes/tilesRouter';
+import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
 
@@ -102,7 +103,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           await pgBoss.start();
         },
       },
-      { token: TILES_ROUTER, provider: { useFactory: tilesRouterFactory } },
+      { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
       {
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },

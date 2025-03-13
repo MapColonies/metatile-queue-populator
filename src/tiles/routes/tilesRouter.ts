@@ -12,4 +12,4 @@ export const tilesRouterFactory: FactoryFunction<Router> = (dependencyContainer)
   return router;
 };
 
-export const TILES_ROUTER = Symbol('tilesRouter');
+export const TILES_ROUTER_SYMBOL = Symbol('tilesRouter');

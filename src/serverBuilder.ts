@@ -12,7 +12,7 @@ import { collectMetricsExpressMiddleware } from '@map-colonies/telemetry/prom-me
 import { Registry } from 'prom-client';
 import { ConfigType } from '@common/config';
 import { SERVICES } from '@common/constants';
-import { TILES_ROUTER } from './tiles/routes/tilesRouter';
+import { TILES_ROUTER_SYMBOL } from './tiles/routes/tilesRouter';
 
 @injectable()
 export class ServerBuilder {
@@ -22,7 +22,7 @@ export class ServerBuilder {
     @inject(SERVICES.CONFIG) private readonly config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(SERVICES.METRICS) private readonly metricsRegistry: Registry,
-    @inject(TILES_ROUTER) private readonly tilesRouter: Router
+    @inject(TILES_ROUTER_SYMBOL) private readonly tilesRouter: Router
   ) {
     this.serverInstance = express();
   }
