@@ -24,7 +24,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     const appConfig = config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
-    this.queueDelayTimeout = (appConfig.consumeDelay.delaySec || 0) * MILLISECONDS_IN_SECOND;
+    this.queueDelayTimeout = (appConfig.consumeDelay.delaySec ?? 0) * MILLISECONDS_IN_SECOND;
   }
 
   public get activeQueueName(): string {
