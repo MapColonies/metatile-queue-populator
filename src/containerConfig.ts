@@ -3,7 +3,7 @@ import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
@@ -13,6 +13,7 @@ import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossF
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
+import { consumeAndPopulateFactory } from './requestConsumer';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -116,6 +117,10 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         provider: {
           useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
         },
+      },
+      {
+        token: CONSUME_AND_POPULATE_FACTORY,
+        provider: { useFactory: consumeAndPopulateFactory },
       },
     ];
 
