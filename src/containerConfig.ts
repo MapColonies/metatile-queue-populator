@@ -8,7 +8,7 @@ import { HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } fr
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import { DependencyContainer, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
+import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
@@ -72,12 +72,6 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       {
-        token: ON_SIGNAL,
-        provider: {
-          useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
-        },
-      },
-      {
         token: TilesManager,
         provider: {
           useClass: TilesManager,
@@ -108,6 +102,21 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },
         options: { lifecycle: Lifecycle.Singleton },
+      },
+      {
+        token: HEALTHCHECK,
+        provider: {
+          useFactory: instanceCachingFactory((container) => {
+            const tilesManager = container.resolve(TilesManager);
+            return tilesManager.isAlive.bind(tilesManager);
+          }),
+        },
+      },
+      {
+        token: ON_SIGNAL,
+        provider: {
+          useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
+        },
       },
     ];
 
