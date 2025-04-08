@@ -269,12 +269,12 @@ components:
         minZoom:
           type: integer
           minimum: 0
-          maximum: 19
+          maximum: 18
           description: The minimum zoom for which metatiles will be calculated
         maxZoom:
           type: integer
           minimum: 0
-          maximum: 19
+          maximum: 18
           description: >-
             The maximum zoom for which metatiles will be calculated. note - the
             value should be higher or equal than minZoom
