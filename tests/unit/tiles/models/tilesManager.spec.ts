@@ -6,7 +6,7 @@ import client from 'prom-client';
 import { bbox } from '@turf/turf';
 import { FeatureCollection } from 'geojson';
 import { API_STATE } from '@map-colonies/detiler-common';
-import { ConfigType, getConfig, initConfig } from '@src/common/config';
+import { ConfigType, getConfig } from '@src/common/config';
 import { RequestAlreadyInQueueError } from '../../../../src/tiles/models/errors';
 import { TileRequestQueuePayload, TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
 import { TilesManager } from '../../../../src/tiles/models/tilesManager';
@@ -21,8 +21,7 @@ describe('tilesManager', () => {
   let config: ConfigType;
   let configMock: jest.Mocked<ConfigType>;
 
-  beforeAll(async () => {
-    await initConfig(true);
+  beforeAll(() => {
     config = getConfig();
   });
 

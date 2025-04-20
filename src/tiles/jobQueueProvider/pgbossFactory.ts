@@ -1,10 +1,10 @@
 import { readFileSync } from 'fs';
 import { TlsOptions } from 'tls';
 import { hostname } from 'os';
-import { vectorMetatileQueuePopulatorV1Type } from '@map-colonies/schemas';
+import { vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
 import PgBoss from 'pg-boss';
 
-type DbConfig = vectorMetatileQueuePopulatorV1Type['db'];
+type DbConfig = vectorMetatileQueuePopulatorFullV1Type['db'];
 
 const createDatabaseOptions = (dbConfig: DbConfig): PgBoss.ConstructorOptions => {
   let ssl: TlsOptions | undefined = undefined;

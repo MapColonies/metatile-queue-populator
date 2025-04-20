@@ -27,7 +27,7 @@ module.exports = {
   ],
   rootDir: '../../../.',
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/matchers.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/matchers.js', '<rootDir>/tests/configurations/jest.setupAfterEnv.js'],
   testEnvironment: 'node',
   coverageThreshold: {
     global: {

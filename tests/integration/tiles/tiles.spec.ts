@@ -7,10 +7,10 @@ import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
-import { type vectorMetatileQueuePopulatorV1Type } from '@map-colonies/schemas';
+import { type vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
 import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
-import { ConfigType, getConfig, initConfig } from '../../../src/common/config';
+import { ConfigType, getConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
 import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
@@ -35,8 +35,7 @@ async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBo
 describe('tiles', function () {
   let config: ConfigType;
 
-  beforeAll(async function () {
-    await initConfig(true);
+  beforeAll(function () {
     config = getConfig();
   });
 
@@ -58,7 +57,7 @@ describe('tiles', function () {
                       ...config.get('app'),
                       projectName: 'app-api',
                       enableRequestQueueHandling: false,
-                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -379,7 +378,7 @@ describe('tiles', function () {
                       consumeDelay: {
                         enabled: false,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -783,7 +782,7 @@ describe('tiles', function () {
                         delaySec: 1,
                         tilesQueueSizeLimit: 2,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -890,7 +889,7 @@ describe('tiles', function () {
                         api: true,
                         expiredTiles: true,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
