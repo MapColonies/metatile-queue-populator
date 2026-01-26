@@ -12,7 +12,8 @@ import { consumeAndPopulateFactory } from './requestConsumer';
 let container: DependencyContainer | undefined;
 
 void getApp()
-  .then(async ([app, container]) => {
+  .then(async ([app, depContainer]) => {
+    container = depContainer;
     const logger = container.resolve<Logger>(SERVICES.LOGGER);
     const config = container.resolve<ConfigType>(SERVICES.CONFIG);
     const port = config.get('server.port');
