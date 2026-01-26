@@ -375,7 +375,7 @@ describe('tiles', function () {
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: false,
                       },
                     } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
@@ -777,7 +777,7 @@ describe('tiles', function () {
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: true,
                         delaySec: 1,
                         tilesQueueSizeLimit: 2,
@@ -882,7 +882,7 @@ describe('tiles', function () {
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: false,
                       },
                       force: {

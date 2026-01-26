@@ -19,11 +19,11 @@ export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (
 
   let conditionFn: ConditionFn | undefined = undefined;
 
-  if (appConfig.consumeDelay.enabled) {
+  if (appConfig.consumeCondition.enabled) {
     conditionFn = async (): Promise<boolean> => {
       const currentSize = await pgBoss.getQueueSize(tilesManager.tilesQueueName, { before: 'completed' });
       logger.debug({ msg: 'condition function', queueName: tilesManager.tilesQueueName, size: currentSize });
-      return currentSize <= (appConfig.consumeDelay.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
+      return currentSize <= (appConfig.consumeCondition.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
     };
   }
 

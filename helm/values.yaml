@@ -32,7 +32,7 @@ env:
   projectName: 'default'
   enableRequestQueueHandling: true
   requestQueueCheckIntervalSec: 60
-  consumeDelay:
+  consumeCondition:
     enabled: false
     # delaySec: 10
     # tilesQueueSizeLimit: 666

@@ -35,7 +35,7 @@ describe('PgBossJobQueueProvider', () => {
             return {
               projectName: 'queue-name',
               requestQueueCheckIntervalSec: 0.1,
-              consumeDelay: 0.2,
+              consumeCondition: 0.2,
             };
           default:
             break;
