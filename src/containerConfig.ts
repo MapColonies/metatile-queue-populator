@@ -76,7 +76,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         provider: {
           useClass: TilesManager,
         },
-        options: { lifecycle: Lifecycle.Singleton },
+        options: { lifecycle: Lifecycle.ContainerScoped },
       },
       {
         token: PGBOSS_PROVIDER,
