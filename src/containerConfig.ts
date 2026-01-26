@@ -94,6 +94,10 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
         postInjectionHook: async (container): Promise<void> => {
           const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
+          const logger = container.resolve<Logger>(SERVICES.LOGGER).child({ component: 'pgBoss-events' });
+
+          pgBoss.on('error', (err) => logger.error({ msg: 'pg-boss error event', err }));
+
           await pgBoss.start();
         },
       },
