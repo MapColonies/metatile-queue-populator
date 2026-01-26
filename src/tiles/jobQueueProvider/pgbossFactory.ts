@@ -3,6 +3,7 @@ import { TlsOptions } from 'tls';
 import { hostname } from 'os';
 import { vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
 import PgBoss from 'pg-boss';
+import { SERVICE_NAME } from '@src/common/constants';
 
 type DbConfig = vectorMetatileQueuePopulatorFullV1Type['db'];
 
@@ -18,7 +19,7 @@ const createDatabaseOptions = (dbConfig: DbConfig): PgBoss.ConstructorOptions =>
     user: dataSourceOptions.username,
     ssl,
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    application_name: `${hostname()}-${process.env.NODE_ENV ?? 'unknown_env'}`,
+    application_name: `${SERVICE_NAME}-${hostname()}-${process.env.NODE_ENV ?? 'unknown_env'}`,
   };
 };
 
