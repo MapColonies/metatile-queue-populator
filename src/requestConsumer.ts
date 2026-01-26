@@ -7,6 +7,7 @@ import { TileRequestQueuePayload } from './tiles/models/tiles';
 import { TilesManager } from './tiles/models/tilesManager';
 import { ConfigType } from './common/config';
 import { PGBOSS_PROVIDER } from './tiles/jobQueueProvider/pgbossFactory';
+import { type ConditionFn } from './tiles/jobQueueProvider/intefaces';
 
 export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (container) => {
   const logger = container.resolve<Logger>(SERVICES.LOGGER);
@@ -16,7 +17,7 @@ export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (
   const tilesManager = container.resolve(TilesManager);
   const appConfig = config.get('app');
 
-  let conditionFn: (() => boolean | Promise<boolean>) | undefined = undefined;
+  let conditionFn: ConditionFn | undefined = undefined;
 
   if (appConfig.consumeDelay.enabled) {
     conditionFn = async (): Promise<boolean> => {

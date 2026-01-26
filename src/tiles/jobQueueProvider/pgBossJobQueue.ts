@@ -1,11 +1,11 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
-import { ConfigType } from '@src/common/config';
+import { type ConfigType } from '@src/common/config';
 import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
-import { JobQueueProvider } from './intefaces';
+import { type ConditionFn, JobQueueProvider } from './intefaces';
 import { PGBOSS_PROVIDER } from './pgbossFactory';
 
 @injectable()
@@ -42,7 +42,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     this.isRunning = false;
   }
 
-  public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: () => boolean | Promise<boolean>): Promise<void> {
+  public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: ConditionFn): Promise<void> {
     this.logger.info({ msg: 'started consuming queue' });
 
     for await (const job of this.getJobsIterator<T>(conditionFn)) {
@@ -72,7 +72,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
   }
 
-  private async *getJobsIterator<T>(conditionFn?: () => boolean | Promise<boolean>): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
+  private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
     while (this.isRunning) {
       const shouldFetch = conditionFn ? await conditionFn() : true;
 
