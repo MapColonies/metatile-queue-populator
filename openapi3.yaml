@@ -72,6 +72,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         5XX:
           $ref: '#/components/responses/UnexpectedError'
+security: []
 components:
   responses:
     BadRequest:
