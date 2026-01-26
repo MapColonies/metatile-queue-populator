@@ -1,6 +1,11 @@
 name: pull_request
 
 on: [pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+  pull-requests: read
+
 env:
   DB_HOST: localhost
   DB_PORT: 5432
@@ -11,7 +16,7 @@ env:
 
 jobs:
   eslint:
-    name: Run TS Project eslint
+    name: Run Linters
     runs-on: ubuntu-latest
 
     strategy:
@@ -20,9 +25,9 @@ jobs:
 
     steps:
       - name: Check out TS Project Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Init nodejs
+      - name: Init Nodejs
         uses: MapColonies/shared-workflows/actions/init-npm@init-npm-v1
         with:
           node-version: ${{ matrix.node }}
@@ -30,20 +35,20 @@ jobs:
       - name: Run TS Project linters
         uses: wearerequired/lint-action@v2
         with:
-          github_token: ${{ secrets.github_token }}
-          # Enable linters
           eslint: true
           prettier: true
           eslint_extensions: ts
+          tsc: true
+
   openapi-lint:
     name: Run OpenAPI lint Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out TS Project Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Init nodejs
+      - name: Init Nodejs
         uses: MapColonies/shared-workflows/actions/init-npm@init-npm-v1
 
       - name: OpenAPI Lint Checks
@@ -73,19 +78,21 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Check out TS Project Git repository
-        uses: actions/checkout@v4
+      - name: Check out Git repository
+        uses: actions/checkout@v5
 
-      - name: Init nodejs
+      - name: Init Nodejs
         uses: MapColonies/shared-workflows/actions/init-npm@init-npm-v1
+        with:
+          node-version: ${{ matrix.node }}
 
       - name: Run tests
         run: npm run test
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Test Reporters ${{ matrix.node }}
-          path: ./reports/**
+          name: Test Reporters Node-${{ matrix.node }}
+          path: reports/**
 
   security:
     runs-on: ubuntu-latest
@@ -97,13 +104,10 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-  build_image:
-    name: Build Image
+  build_docker_image:
+    name: Build Docker Image
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
-
-      - name: build Docker image
-        run: docker build -t test-build:latest .
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v6
