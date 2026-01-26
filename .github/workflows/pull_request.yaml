@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        node: [20.x, 22.x]
+        node: [24.x]
 
     steps:
       - name: Check out TS Project Git repository
@@ -35,6 +35,19 @@ jobs:
           eslint: true
           prettier: true
           eslint_extensions: ts
+  openapi-lint:
+    name: Run OpenAPI lint Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out TS Project Git repository
+        uses: actions/checkout@v4
+
+      - name: Init nodejs
+        uses: ./.github/actions/init-npm
+
+      - name: OpenAPI Lint Checks
+        run: npx @redocly/cli lint --format=github-actions openapi3.yaml
 
   tests:
     name: Run Tests
@@ -42,7 +55,7 @@ jobs:
 
     strategy:
       matrix:
-        node: [20.x, 22.x]
+        node: [24.x]
 
     services:
       postgres:
