@@ -4,8 +4,9 @@ const { compilerOptions } = require('../../../tsconfig.json');
 /** @type {import('jest').Config} */
 module.exports = {
   transform: {
-    '^.+\\.ts$': ['@swc/jest'],
+    '^.+\\.(t|j)s$': ['@swc/jest'],
   },
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
   coverageReporters: ['text', 'html'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   collectCoverage: true,
@@ -18,7 +19,7 @@ module.exports = {
     '!<rootDir>/src/*',
     '!**/pgbossFactory.ts',
   ],
-  coverageDirectory: '<rootDir>/coverage',
+  coverageDirectory: '<rootDir>/coverage/integration',
   rootDir: '../../../.',
   testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],

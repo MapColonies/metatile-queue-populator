@@ -4,8 +4,9 @@ const { compilerOptions } = require('../../../tsconfig.json');
 /** @type {import('jest').Config} */
 module.exports = {
   transform: {
-    '^.+\\.ts$': ['@swc/jest'],
+    '^.+\\.(t|j)s$': ['@swc/jest'],
   },
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   testMatch: ['<rootDir>/tests/unit/**/*.spec.ts'],
   coverageReporters: ['text', 'html'],
@@ -20,7 +21,7 @@ module.exports = {
     '!<rootDir>/src/*',
     '!**/pgbossFactory.ts',
   ],
-  coverageDirectory: '<rootDir>/coverage',
+  coverageDirectory: '<rootDir>/coverage/unit',
   reporters: [
     'default',
     ['jest-html-reporters', { multipleReportsUnitePath: './reports', pageTitle: 'unit', publicPath: './reports', filename: 'unit.html' }],
