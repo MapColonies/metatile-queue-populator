@@ -34,7 +34,7 @@ env:
   requestQueueCheckIntervalSec: 60
   consumeCondition:
     enabled: false
-    # delaySec: 10
+    # conditionCheckIntervalSec: 10
     # tilesQueueSizeLimit: 666
   force:
     api: false

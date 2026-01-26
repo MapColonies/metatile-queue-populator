@@ -779,7 +779,7 @@ describe('tiles', function () {
                       requestQueueCheckIntervalSec: 1,
                       consumeCondition: {
                         enabled: true,
-                        delaySec: 1,
+                        conditionCheckIntervalSec: 1,
                         tilesQueueSizeLimit: 2,
                       },
                     } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;

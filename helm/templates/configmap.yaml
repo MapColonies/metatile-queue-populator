@@ -51,7 +51,7 @@ data:
   APP_METATILE_SIZE: {{ .Values.env.metatileSize | quote }}
   {{- if .Values.env.consumeCondition.enabled }}
   APP_CONSUME_CONDITION_ENABLED: "true"
-  APP_CONSUME_CONDITION_SEC: {{ .Values.env.consumeCondition.delaySec | quote }}
+  APP_CONSUME_CONDITION_CHECK_INTERVAL_SEC: {{ .Values.env.consumeCondition.conditionCheckIntervalSec | quote }}
   APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT: {{ .Values.env.consumeCondition.tilesQueueSizeLimit | quote }}
   {{- else }}
   APP_CONSUME_CONDITION_ENABLED: "false"
