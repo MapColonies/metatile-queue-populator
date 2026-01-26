@@ -1,6 +1,7 @@
 {
   "extends": "@map-colonies/tsconfig/tsconfig-app",
   "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
     "baseUrl": ".",
     "paths": {
       "@src/*": ["src/*"],

@@ -84,7 +84,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
       const jobs = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
 
-      if (jobs === null || jobs.length === 0 || jobs[0] === undefined) {
+      if (jobs === null || jobs.length === 0) {
         this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
         await setTimeoutPromise(this.queueCheckTimeout);
         continue;
