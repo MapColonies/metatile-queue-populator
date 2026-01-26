@@ -1,4 +1,4 @@
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { HttpError } from '@map-colonies/error-express-handler';
 import { Tile, validateBoundingBox, validateTile, TILEGRID_WORLD_CRS84 } from '@map-colonies/tile-calc';
 import geojsonValidator from '@turf/boolean-valid';

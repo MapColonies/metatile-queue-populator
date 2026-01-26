@@ -1,5 +1,5 @@
 import { randomUUID as uuidv4 } from 'crypto';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { API_STATE } from '@map-colonies/detiler-common';
 import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
@@ -7,7 +7,7 @@ import { inject, injectable } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from 'geojson';
-import { ConfigType } from '@src/common/config';
+import { type ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
 import { SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
