@@ -20,7 +20,7 @@
     }
   },
   "server": {
-    "port": 8083,
+    "port": 8080,
     "request": {
       "payload": {
         "limit": "1mb"
