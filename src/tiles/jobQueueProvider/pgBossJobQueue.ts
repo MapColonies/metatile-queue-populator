@@ -34,6 +34,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   public startQueue(): void {
     this.logger.debug({ msg: 'starting queue', queueName: this.queueName });
+    this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
+
     this.isRunning = true;
   }
 
