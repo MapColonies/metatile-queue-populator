@@ -9,14 +9,14 @@ type DbConfig = vectorMetatileQueuePopulatorFullV1Type['db'];
 
 const createDatabaseOptions = (dbConfig: DbConfig): PgBoss.ConstructorOptions => {
   let ssl: TlsOptions | undefined = undefined;
-  const { ssl: inputSsl, ...dataSourceOptions } = dbConfig;
+  const { ssl: inputSsl, username: user, ...dataSourceOptions } = dbConfig;
 
   if (inputSsl.enabled) {
     ssl = { key: readFileSync(inputSsl.key), cert: readFileSync(inputSsl.cert), ca: readFileSync(inputSsl.ca) };
   }
   return {
     ...dataSourceOptions,
-    user: dataSourceOptions.username,
+    user,
     ssl,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     application_name: `${SERVICE_NAME}-${hostname()}-${process.env.NODE_ENV ?? 'unknown_env'}`,
