@@ -76,10 +76,10 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
     while (this.isRunning) {
-      const shouldFetch = conditionFn ? await conditionFn() : true;
+      const shouldConsume = conditionFn ? await conditionFn() : true;
 
-      if (!shouldFetch) {
-        this.logger.info({ msg: 'fetch condition is falsy, waiting for a while', timeout: this.queueDelayTimeout });
+      if (!shouldConsume) {
+        this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout: this.queueDelayTimeout });
         await setTimeoutPromise(this.queueDelayTimeout);
         continue;
       }
