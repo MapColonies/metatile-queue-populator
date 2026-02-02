@@ -3,6 +3,7 @@ import { type Logger } from '@map-colonies/js-logger';
 import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { type ConfigType } from '@src/common/config';
+import { vectorMetatileQueuePopulatorSharedV1Type } from '@map-colonies/schemas';
 import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
 import { type ConditionFn, JobQueueProvider } from './intefaces';
@@ -13,7 +14,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private isRunning = true;
   private readonly queueName: string;
   private readonly queueCheckTimeout: number;
-  private readonly queueDelayTimeout: number;
+  private readonly consumeCondition: vectorMetatileQueuePopulatorSharedV1Type['app']['consumeCondition'];
 
   private runningJobs = 0;
 
@@ -25,7 +26,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     const appConfig = config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
-    this.queueDelayTimeout = (appConfig.consumeCondition.conditionCheckIntervalSec ?? 0) * MILLISECONDS_IN_SECOND;
+    this.consumeCondition = appConfig.consumeCondition;
   }
 
   public get activeQueueName(): string {
@@ -75,12 +76,14 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
+    const timeout = this.consumeCondition.enabled ? this.consumeCondition.conditionCheckIntervalSec * MILLISECONDS_IN_SECOND : 0;
+
     while (this.isRunning) {
       const shouldConsume = conditionFn ? await conditionFn() : true;
 
       if (!shouldConsume) {
-        this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout: this.queueDelayTimeout });
-        await setTimeoutPromise(this.queueDelayTimeout);
+        this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout });
+        await setTimeoutPromise(timeout);
         continue;
       }
 
