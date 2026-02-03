@@ -2,5 +2,5 @@ apiVersion: v2
 name: metatile-queue-populator
 description: A Helm chart for metatile-queue-populator service
 type: application
-version: 2.2.1
-appVersion: 2.2.1
+version: 3.0.0
+appVersion: 3.0.0
