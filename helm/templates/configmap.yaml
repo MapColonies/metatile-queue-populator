@@ -49,11 +49,11 @@ data:
   APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC: {{ .Values.env.requestQueueCheckIntervalSec | quote }}
   APP_TILES_BATCH_SIZE: {{ .Values.env.tilesBatchSize | quote }}
   APP_METATILE_SIZE: {{ .Values.env.metatileSize | quote }}
-  {{- if .Values.env.consumeDelay.enabled }}
-  APP_CONSUME_DELAY_ENABLED: "true"
-  APP_CONSUME_DELAY_SEC: {{ .Values.env.consumeDelay.delaySec | quote }}
-  APP_CONSUME_DELAY_TILES_QUEUE_SIZE_LIMIT: {{ .Values.env.consumeDelay.tilesQueueSizeLimit | quote }}
+  {{- if .Values.env.consumeCondition.enabled }}
+  APP_CONSUME_CONDITION_ENABLED: "true"
+  APP_CONSUME_CONDITION_CHECK_INTERVAL_SEC: {{ .Values.env.consumeCondition.conditionCheckIntervalSec | quote }}
+  APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT: {{ .Values.env.consumeCondition.tilesQueueSizeLimit | quote }}
   {{- else }}
-  APP_CONSUME_DELAY_ENABLED: "false"
+  APP_CONSUME_CONDITION_ENABLED: "false"
   {{- end }}
 {{- end }}

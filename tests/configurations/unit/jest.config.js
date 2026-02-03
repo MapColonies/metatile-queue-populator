@@ -1,12 +1,13 @@
+const { pathsToModuleNameMapper } = require('ts-jest');
+const { compilerOptions } = require('../../../tsconfig.json');
+
+/** @type {import('jest').Config} */
 module.exports = {
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.(t|j)s$': ['@swc/jest'],
   },
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.test.json',
-    },
-  },
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
+  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   testMatch: ['<rootDir>/tests/unit/**/*.spec.ts'],
   coverageReporters: ['text', 'html'],
   collectCoverage: true,
@@ -18,18 +19,16 @@ module.exports = {
     '!**/controllers/**',
     '!**/routes/**',
     '!<rootDir>/src/*',
-    '!<rootDir>/src/tiles/models/errors.ts',
     '!**/pgbossFactory.ts',
   ],
-  coverageDirectory: '<rootDir>/coverage',
+  coverageDirectory: '<rootDir>/coverage/unit',
   reporters: [
     'default',
     ['jest-html-reporters', { multipleReportsUnitePath: './reports', pageTitle: 'unit', publicPath: './reports', filename: 'unit.html' }],
   ],
   rootDir: '../../../.',
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/matchers.js'],
-  preset: 'ts-jest',
+  setupFilesAfterEnv: ['<rootDir>/tests/matchers.js', '<rootDir>/tests/configurations/jest.setupAfterEnv.js'],
   testEnvironment: 'node',
   coverageThreshold: {
     global: {

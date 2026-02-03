@@ -1,20 +1,34 @@
+const { pathsToModuleNameMapper } = require('ts-jest');
+const { compilerOptions } = require('../../../tsconfig.json');
+
+/** @type {import('jest').Config} */
 module.exports = {
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.(t|j)s$': ['@swc/jest'],
   },
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.test.json',
-    },
-  },
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
   coverageReporters: ['text', 'html'],
+  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   collectCoverage: true,
-  collectCoverageFrom: ['<rootDir>/src/**/*.ts', '!*/node_modules/', '!/vendor/**', '!*/common/**', '!<rootDir>/src/*', '!**/pgbossFactory.ts'],
-  coverageDirectory: '<rootDir>/coverage',
+  collectCoverageFrom: [
+    '<rootDir>/src/**/*.ts',
+    '!*/node_modules/',
+    '!/vendor/**',
+    '!*/common/**',
+    '!**/models/**',
+    '!<rootDir>/src/*',
+    '!**/pgbossFactory.ts',
+  ],
+  coverageDirectory: '<rootDir>/coverage/integration',
   rootDir: '../../../.',
   testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
-  setupFilesAfterEnv: ['jest-openapi', '<rootDir>/tests/configurations/initJestOpenapi.setup.ts', '<rootDir>/tests/matchers.js'],
+  setupFilesAfterEnv: [
+    'jest-openapi',
+    '<rootDir>/tests/configurations/initJestOpenapi.setup.ts',
+    '<rootDir>/tests/matchers.js',
+    '<rootDir>/tests/configurations/jest.setupAfterEnv.js',
+  ],
   reporters: [
     'default',
     [
@@ -22,9 +36,7 @@ module.exports = {
       { multipleReportsUnitePath: './reports', pageTitle: 'integration', publicPath: './reports', filename: 'integration.html' },
     ],
   ],
-  collectCoverage: true,
   moduleDirectories: ['node_modules', 'src'],
-  preset: 'ts-jest',
   testEnvironment: 'node',
   coverageThreshold: {
     global: {

@@ -1,30 +1,32 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
+import { type ConfigType } from '@src/common/config';
+import { vectorMetatileQueuePopulatorSharedV1Type } from '@map-colonies/schemas';
 import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
-import { AppConfig, IConfig } from '../../common/interfaces';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
-import { JobQueueProvider } from './intefaces';
+import { type ConditionFn, JobQueueProvider } from './intefaces';
+import { PGBOSS_PROVIDER } from './pgbossFactory';
 
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
   private isRunning = true;
   private readonly queueName: string;
   private readonly queueCheckTimeout: number;
-  private readonly queueDelayTimeout: number;
+  private readonly consumeCondition: vectorMetatileQueuePopulatorSharedV1Type['app']['consumeCondition'];
 
   private runningJobs = 0;
 
   public constructor(
-    private readonly pgBoss: PgBoss,
-    @inject(SERVICES.CONFIG) config: IConfig,
+    @inject(PGBOSS_PROVIDER) private readonly pgBoss: PgBoss,
+    @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {
-    const appConfig = config.get<AppConfig>('app');
+    const appConfig = config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
-    this.queueDelayTimeout = appConfig.consumeDelay.delaySec * MILLISECONDS_IN_SECOND;
+    this.consumeCondition = appConfig.consumeCondition;
   }
 
   public get activeQueueName(): string {
@@ -33,6 +35,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   public startQueue(): void {
     this.logger.debug({ msg: 'starting queue', queueName: this.queueName });
+    this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
+
     this.isRunning = true;
   }
 
@@ -41,7 +45,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     this.isRunning = false;
   }
 
-  public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: () => boolean | Promise<boolean>): Promise<void> {
+  public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: ConditionFn): Promise<void> {
     this.logger.info({ msg: 'started consuming queue' });
 
     for await (const job of this.getJobsIterator<T>(conditionFn)) {
@@ -71,13 +75,15 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
   }
 
-  private async *getJobsIterator<T>(conditionFn?: () => boolean | Promise<boolean>): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
-    while (this.isRunning) {
-      const shouldFetch = conditionFn ? await conditionFn() : true;
+  private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
+    const timeout = this.consumeCondition.enabled ? this.consumeCondition.conditionCheckIntervalSec * MILLISECONDS_IN_SECOND : 0;
 
-      if (!shouldFetch) {
-        this.logger.info({ msg: 'fetch condition is falsy, waiting for a while', timeout: this.queueDelayTimeout });
-        await setTimeoutPromise(this.queueDelayTimeout);
+    while (this.isRunning) {
+      const shouldConsume = conditionFn ? await conditionFn() : true;
+
+      if (!shouldConsume) {
+        this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout });
+        await setTimeoutPromise(timeout);
         continue;
       }
 

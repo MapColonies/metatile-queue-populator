@@ -1,12 +1,12 @@
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
+import { HttpError } from '@map-colonies/error-express-handler';
 import { Tile, validateBoundingBox, validateTile, TILEGRID_WORLD_CRS84 } from '@map-colonies/tile-calc';
 import geojsonValidator from '@turf/boolean-valid';
 import { RequestHandler } from 'express';
-import { HttpError } from 'express-openapi-validator/dist/framework/types';
 import httpStatus from 'http-status-codes';
 import { injectable, inject } from 'tsyringe';
 import { SERVICES } from '../../common/constants';
-import { RequestAlreadyInQueueError, RequestValidationError } from '../models/errors';
+import { RequestValidationError } from '../models/errors';
 import { TilesByAreaRequest } from '../models/tiles';
 import { TilesManager } from '../models/tilesManager';
 
@@ -15,7 +15,10 @@ type PostTilesListHandler = RequestHandler<undefined, { message: string }, Tile[
 
 @injectable()
 export class TilesController {
-  public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger, private readonly manager: TilesManager) {}
+  public constructor(
+    @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    @inject(TilesManager) private readonly manager: TilesManager
+  ) {}
 
   public postTilesByArea: PostTilesByAreaHandler = async (req, res, next) => {
     const arealRequest = Array.isArray(req.body) ? req.body : [req.body];
@@ -24,12 +27,6 @@ export class TilesController {
       await this.manager.addArealTilesRequestToQueue(arealRequest, req.query.force);
       return res.status(httpStatus.OK).json({ message: httpStatus.getStatusText(httpStatus.OK) });
     } catch (error) {
-      if (error instanceof RequestValidationError) {
-        (error as HttpError).status = httpStatus.BAD_REQUEST;
-      }
-      if (error instanceof RequestAlreadyInQueueError) {
-        (error as HttpError).status = httpStatus.CONFLICT;
-      }
       next(error);
     }
   };

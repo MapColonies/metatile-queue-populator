@@ -110,6 +110,6 @@ dist
 # Jest
 jest_html_reporters.html
 reports
-local.json
-local-test.json
-myvalues.yaml
+
+**/local.json
+**/myvalues.yaml

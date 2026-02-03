@@ -1,21 +1,23 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
-import { Registry } from 'prom-client';
-import { bbox, FeatureCollection } from '@turf/turf';
+import { type vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
+import { type FeatureCollection } from 'geojson';
+import { bbox } from '@turf/turf';
+import { ConfigType, getConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
-import { JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
 import { boundingBoxToPolygon } from '../../../src/tiles/models/util';
+import { PGBOSS_PROVIDER } from '../../../src/tiles/jobQueueProvider/pgbossFactory';
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
 
@@ -31,6 +33,12 @@ async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBo
 }
 
 describe('tiles', function () {
+  let config: ConfigType;
+
+  beforeAll(function () {
+    config = getConfig();
+  });
+
   describe('api', () => {
     let requestSender: TilesRequestSender;
     let container: DependencyContainer;
@@ -43,17 +51,21 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'app-api',
                       enableRequestQueueHandling: false,
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
@@ -200,7 +212,7 @@ describe('tiles', function () {
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
           const message = (response.body as { message: string }).message;
-          expect(message).toContain('request.body.minZoom should be >= 0');
+          expect(message).toContain('request/body/minZoom must be >= 0');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -288,7 +300,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList({} as []);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should be array');
+          expect(response.body).toHaveProperty('message', 'request/body must be array');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -296,7 +308,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', 'request.body should NOT have fewer than 1 items');
+          expect(response.body).toHaveProperty('message', 'request/body must NOT have fewer than 1 items');
           expect(response).toSatisfyApiSpec();
         });
 
@@ -304,7 +316,7 @@ describe('tiles', function () {
           const response = await requestSender.postTilesList([{ x: 0, y: 0 } as Tile]);
 
           expect(response.status).toBe(httpStatusCodes.BAD_REQUEST);
-          expect(response.body).toHaveProperty('message', "request.body[0] should have required property 'z'");
+          expect(response.body).toHaveProperty('message', "request/body/0 must have required property 'z'");
           expect(response).toSatisfyApiSpec();
         });
 
@@ -321,7 +333,7 @@ describe('tiles', function () {
     describe('Sad Path', function () {
       describe('POST /tiles/area', function () {
         it('should return 500 if the queue is not available', async function () {
-          const boss = container.resolve(PgBoss);
+          const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
           jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
 
           const bbox = getBbox();
@@ -333,7 +345,7 @@ describe('tiles', function () {
 
       describe('POST /tiles/list', function () {
         it('should return 500 if the queue is not available', async function () {
-          const boss = container.resolve(PgBoss);
+          const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
           jest.spyOn(boss, 'insert').mockRejectedValueOnce(new Error('failed'));
 
           const response = await requestSender.postTilesList([{ z: 0, x: 0, y: 0, metatile: 8 }]);
@@ -354,35 +366,38 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: false,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -392,10 +407,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -439,10 +455,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -488,10 +505,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -535,10 +553,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -583,10 +602,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the api bbox request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -630,10 +650,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the api multi areal request into the queue', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -683,10 +704,11 @@ describe('tiles', function () {
     });
 
     it('should filter out non intersected tiles for geojson request', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const [west, south, east, north] = bbox(GOOD_LARGE_FEATURE);
       const boundingBox = { west, south, east, north };
@@ -746,37 +768,40 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: true,
-                        delaySec: 1,
+                        conditionCheckIntervalSec: 1,
                         tilesQueueSizeLimit: 2,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -786,10 +811,11 @@ describe('tiles', function () {
     });
 
     it('should delay the consumption of the requests queue if tiles queue is overflowing', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request1 = {
         items: [
@@ -847,39 +873,42 @@ describe('tiles', function () {
             token: SERVICES.CONFIG,
             provider: {
               useValue: {
-                get: (key: string) => {
+                get: ((key: string) => {
                   if (key === 'app') {
                     return {
+                      ...config.get('app'),
                       projectName: 'test-requests',
                       tilesBatchSize: 10,
                       metatileSize: 8,
                       enableRequestQueueHandling: true,
                       requestQueueCheckIntervalSec: 1,
-                      consumeDelay: {
+                      consumeCondition: {
                         enabled: false,
                       },
                       force: {
                         api: true,
                         expiredTiles: true,
                       },
-                    };
-                  } else {
-                    return config.get(key);
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
                   }
-                },
-              },
+                  return config.get(key);
+                }) as ConfigType['get'],
+                getAll: jest.fn(),
+                getConfigParts: jest.fn(),
+                getResolvedOptions: jest.fn(),
+                initializeMetrics: config.initializeMetrics,
+              } satisfies ConfigType,
             },
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: SERVICES.METRICS_REGISTRY, provider: { useValue: new Registry() } },
         ],
       });
       container = depContainer;
     });
 
     beforeEach(async function () {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       await boss.clearStorage();
     });
 
@@ -889,10 +918,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the expireTiles bbox request into the queue with force and state if attributed so', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [
@@ -937,10 +967,11 @@ describe('tiles', function () {
     });
 
     it('should add the tiles from the geojson api request into the queue with force attribute', async () => {
-      const boss = container.resolve(PgBoss);
+      const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
       const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
       provider.startQueue();
-      const consumeAndPopulatePromise = consumeAndPopulateFactory(container)();
+
+      const consumeAndPopulatePromise = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY)();
 
       const request = {
         items: [

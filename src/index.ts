@@ -1,52 +1,45 @@
-/* eslint-disable import/first */
-// this import must be called before the first import of tsyring
+// this import must be called before the first import of tsyringe
 import 'reflect-metadata';
-import './common/tracing';
 import { createServer } from 'http';
-import { createTerminus, HealthCheck } from '@godaddy/terminus';
-import { Logger } from '@map-colonies/js-logger';
-import config from 'config';
 import { DependencyContainer } from 'tsyringe';
-import { CONSUME_AND_POPULATE_FACTORY, DEFAULT_SERVER_PORT, HEALTHCHECK_SYMBOL, ON_SIGNAL, SERVICES } from './common/constants';
+import { createTerminus } from '@godaddy/terminus';
+import { Logger } from '@map-colonies/js-logger';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, ON_SIGNAL, SERVICES } from '@common/constants';
+import { ConfigType } from '@common/config';
 import { getApp } from './app';
-import { IConfig } from './common/interfaces';
+import { consumeAndPopulateFactory } from './requestConsumer';
 
-let depContainer: DependencyContainer | undefined;
-
-const port: number = config.get<number>('server.port') || DEFAULT_SERVER_PORT;
+let container: DependencyContainer | undefined;
 
 void getApp()
-  .then(async ([app, container]) => {
-    depContainer = container;
-
-    const logger = depContainer.resolve<Logger>(SERVICES.LOGGER);
-    const config = depContainer.resolve<IConfig>(SERVICES.CONFIG);
-    const healthCheck = depContainer.resolve<HealthCheck | boolean>(HEALTHCHECK_SYMBOL);
-
+  .then(async ([app, depContainer]) => {
+    container = depContainer;
+    const logger = container.resolve<Logger>(SERVICES.LOGGER);
+    const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+    const port = config.get('server.port');
     const server = createTerminus(createServer(app), {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      healthChecks: { '/liveness': healthCheck, '/readiness': healthCheck },
-      onSignal: depContainer.resolve(ON_SIGNAL),
+      healthChecks: { '/liveness': container.resolve(HEALTHCHECK) },
+      onSignal: container.resolve(ON_SIGNAL),
     });
 
     server.listen(port, () => {
       logger.info(`app started on port ${port}`);
     });
 
-    if (config.get<boolean>('app.enableRequestQueueHandling')) {
-      const consumeAndPopulate = container.resolve<() => Promise<void>>(CONSUME_AND_POPULATE_FACTORY);
+    if (config.get('app.enableRequestQueueHandling')) {
+      const consumeAndPopulate = container.resolve<ReturnType<typeof consumeAndPopulateFactory>>(CONSUME_AND_POPULATE_FACTORY);
       await consumeAndPopulate();
     }
   })
   .catch(async (error: Error) => {
-    const errorLogger =
-      depContainer?.isRegistered(SERVICES.LOGGER) === true
-        ? depContainer.resolve<Logger>(SERVICES.LOGGER).error.bind(depContainer.resolve<Logger>(SERVICES.LOGGER))
-        : console.error;
-    errorLogger({ msg: '😢 - failed initializing the server', err: error });
+    console.error('😢 - failed initializing the server');
+    console.error(error);
 
-    if (depContainer?.isRegistered(ON_SIGNAL) === true) {
-      const shutDown: () => Promise<void> = depContainer.resolve(ON_SIGNAL);
-      await shutDown();
+    if (container?.isRegistered(ON_SIGNAL) === true) {
+      const shutdown = container.resolve<() => Promise<void>>(ON_SIGNAL);
+      await shutdown();
     }
+
+    process.exit(1);
   });

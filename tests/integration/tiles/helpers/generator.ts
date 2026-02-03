@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 import { faker } from '@faker-js/faker';
+import { BBox } from '@src/tiles/models/tiles';
 
-export function getBbox(): [number, number, number, number] {
-  const west = faker.datatype.float({ min: -170, max: 170, precision: 0.01 });
-  const south = faker.datatype.float({ min: -85, max: 85, precision: 0.01 });
+export function getBbox(): BBox {
+  const west = faker.number.float({ min: -170, max: 170, fractionDigits: 2 });
+  const south = faker.number.float({ min: -85, max: 85, fractionDigits: 2 });
   return [
     west,
     south,
-    faker.datatype.float({ min: west + 0.01, max: 171, precision: 0.01 }),
-    faker.datatype.float({ min: south + 0.01, max: 86, precision: 0.01 }),
+    faker.number.float({ min: west + 0.01, max: 171, fractionDigits: 2 }),
+    faker.number.float({ min: south + 0.01, max: 86, fractionDigits: 2 }),
   ];
 }

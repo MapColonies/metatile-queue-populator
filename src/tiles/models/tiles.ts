@@ -1,5 +1,5 @@
-import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Feature, FeatureCollection } from '@turf/turf';
+import { type BoundingBox, type Tile } from '@map-colonies/tile-calc';
+import { type Feature, type FeatureCollection } from 'geojson';
 
 interface BaseTilesRequest {
   minZoom: number;

@@ -43,13 +43,16 @@ each item on this queue is a metatile in the size of metatile property located i
 ```
 
 ## config
-- APP_PROJECT_NAME - affects the name of the queues
-- APP_ENABLE_REQUEST_QUEUE_HANDLING - should this instance work on the request queue, or only api
-- APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC
-- APP_TILES_BATCH_SIZE - how many tiles should be pushed into the queue at once
-- APP_METATILE_SIZE - Default: 8. a numeric value, each tile will be rendered from a APP_METATILE_SIZExAPP_METATILE_SIZE sized request
-- QUEUE_JOBS_EXPIRE_IN_SECONDS - How many seconds a job may be in active state before it is failed because of expiration. Must be >=1
-- QUEUE_JOBS_RETRY_BACKOFF - Default: true. Enables exponential backoff retries based on retryDelay instead of a fixed delay. Sets initial retryDelay to 1 if not set.
-- QUEUE_JOBS_RETRY_LIMIT - Default: 3. Max number of retries of failed jobs.
-- QUEUE_JOBS_RETRY_DELAY_SECONDS - Default: 60. Delay between retries of failed jobs, in seconds.
-- QUEUE_JOBS_RETENTION_HOURS - Default: 87660. How many hours a job may be in created or retry state before it's archived. Must be >=1
+- `APP_PROJECT_NAME` - affects the name of the queues
+- `APP_ENABLE_REQUEST_QUEUE_HANDLING` - should this instance work on the request queue, or only api
+- `APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC`
+- `APP_TILES_BATCH_SIZE` - how many tiles should be pushed into the queue at once
+- `APP_METATILE_SIZE` - Default: 8. a numeric value, each tile will be rendered from a `APP_METATILE_SIZE`x`APP_METATILE_SIZE` sized request
+- `QUEUE_JOBS_EXPIRE_IN_SECONDS` - How many seconds a job may be in active state before it is failed because of expiration. Must be >=1
+- `QUEUE_JOBS_RETRY_BACKOFF` - Default: true. Enables exponential backoff retries based on retryDelay instead of a fixed delay. Sets initial retryDelay to 1 if not set.
+- `QUEUE_JOBS_RETRY_LIMIT` - Default: 3. Max number of retries of failed jobs.
+- `QUEUE_JOBS_RETRY_DELAY_SECONDS` - Default: 60. Delay between retries of failed jobs, in seconds.
+- `QUEUE_JOBS_RETENTION_HOURS` - Default: 87660. How many hours a job may be in created or retry state before it's archived. Must be >=1
+- `APP_CONSUME_CONDITION_ENABLED` - Pre-request consumption flag for conditions validation, current condition is tiles queue size (see `APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT`)
+- `APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT` - The max number of tiles in the tiles queue allowed before the request consumption
+- `APP_CONSUME_CONDITION_CHECK_INTERVAL_SEC` - upon invalid match to the consume condition, the duration in seconds to wait until the next consume condition validation
