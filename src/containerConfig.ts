@@ -8,7 +8,7 @@ import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
