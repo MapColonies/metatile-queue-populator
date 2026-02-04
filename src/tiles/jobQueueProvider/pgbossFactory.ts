@@ -2,12 +2,12 @@ import { readFileSync } from 'fs';
 import { TlsOptions } from 'tls';
 import { hostname } from 'os';
 import { vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
-import PgBoss from 'pg-boss';
+import { PgBoss, type ConstructorOptions } from 'pg-boss';
 import { SERVICE_NAME } from '@src/common/constants';
 
 type DbConfig = vectorMetatileQueuePopulatorFullV1Type['db'];
 
-const createDatabaseOptions = (dbConfig: DbConfig): PgBoss.ConstructorOptions => {
+const createDatabaseOptions = (dbConfig: DbConfig): ConstructorOptions => {
   let ssl: TlsOptions | undefined = undefined;
   const { ssl: inputSsl, username: user, ...dataSourceOptions } = dbConfig;
 
@@ -25,7 +25,11 @@ const createDatabaseOptions = (dbConfig: DbConfig): PgBoss.ConstructorOptions =>
 
 export const pgBossFactory = (dbConfig: DbConfig): PgBoss => {
   const databaseOptions = createDatabaseOptions(dbConfig);
-  return new PgBoss({ ...databaseOptions, noScheduling: true, noSupervisor: true, uuid: 'v4' });
+  return new PgBoss({
+    ...databaseOptions,
+    supervise: false, //TODO: check if we can enable supervise
+    schedule: false,
+  });
 };
 
 export const PGBOSS_PROVIDER = Symbol('PgBoss');
