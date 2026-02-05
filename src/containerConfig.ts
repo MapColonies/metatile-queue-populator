@@ -14,7 +14,7 @@ import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRou
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
 import { consumeAndPopulateFactory } from './requestConsumer';
-import { queuesNameFactory } from './tiles/jobQueueProvider/queuesNameFactory';
+import { queuesNameFactory, type QueueNames } from './tiles/jobQueueProvider/queuesNameFactory';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -101,8 +101,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
         postInjectionHook: async (container): Promise<void> => {
           const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
+          const queuesName = container.resolve<QueueNames>(QUEUE_NAMES);
 
           await pgBoss.start();
+
+          const promise = Object.values(queuesName).map(async (queue: string) => pgBoss.createQueue(queue));
+          await Promise.all(promise);
         },
       },
       { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
