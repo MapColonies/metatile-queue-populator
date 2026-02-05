@@ -2,17 +2,18 @@ import { randomUUID as uuidv4 } from 'crypto';
 import { type Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { API_STATE } from '@map-colonies/detiler-common';
-import PgBoss, { JobInsert, JobWithMetadata } from 'pg-boss';
+import { type PgBoss, JobInsert, JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from 'geojson';
 import { type ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
-import { SERVICES } from '../../common/constants';
+import { QUEUES_NAME, SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
+import { type QueuesName } from '../jobQueueProvider/queuesNameFactory';
 import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
@@ -38,11 +39,12 @@ export class TilesManager {
     @inject(PGBOSS_PROVIDER) private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    @inject(QUEUES_NAME) private readonly queuesName: QueuesName,
     @inject(SERVICES.METRICS) registry?: client.Registry
   ) {
     const appConfig = config.get('app');
-    this.requestQueueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
-    this.tilesQueueName = `${TILES_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
+    this.requestQueueName = this.queuesName.requestQueue;
+    this.tilesQueueName = this.queuesName.tilesQueue;
     this.batchSize = appConfig.tilesBatchSize;
     this.metatile = appConfig.metatileSize;
     this.shouldForceApiTiles = appConfig.force.api;
@@ -72,8 +74,8 @@ export class TilesManager {
           name: `metatile_queue_populator_${queue.type}_queue_current_count`,
           help: `The number of jobs currently in the ${queue.type} queue`,
           async collect(): Promise<void> {
-            const currentQueueSize = await self.pgboss.getQueueSize(queue.name);
-            this.set(currentQueueSize);
+            const { totalCount } = await self.pgboss.getQueueStats(queue.name);
+            this.set(totalCount);
           },
           registers: [registry],
         });
@@ -130,10 +132,12 @@ export class TilesManager {
     };
 
     const key = hashValue(payload);
+    //TODO: fix typescript error
+    const singletonSeconds = this.baseQueueConfig.expireInSeconds as number;
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
-    const res = await this.pgboss.sendOnce(this.requestQueueName, payload, { ...this.baseQueueConfig }, key);
+    const res = await this.pgboss.send(this.requestQueueName, payload, { ...this.baseQueueConfig, singletonKey: key, singletonSeconds });
 
     if (res === null) {
       this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
@@ -148,14 +152,13 @@ export class TilesManager {
 
     const tileJobsArr = tiles.map((tile) => ({
       ...this.baseQueueConfig,
-      name: this.tilesQueueName,
       data: { ...tile, parent: requestId, state: API_STATE, force: this.shouldForceApiTiles ? this.shouldForceApiTiles : force },
     }));
     await this.populateTilesQueue(tileJobsArr, 'api');
   }
 
   public async isAlive(): Promise<void> {
-    await this.pgboss.getQueueSize(this.requestQueueName);
+    await this.pgboss.getQueueStats(this.requestQueueName);
   }
 
   public async handleTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
@@ -165,7 +168,7 @@ export class TilesManager {
       jobId: job.id,
       itemCount: job.data.items.length,
       source: job.data.source,
-      retryCount: job.retrycount,
+      retryCount: job.retryCount,
       retryLimit: this.baseQueueConfig.retryLimit,
       state: job.data.state,
       isForced: job.data.force,
@@ -185,7 +188,7 @@ export class TilesManager {
       fetchTimerEnd();
     }
 
-    this.requestsHandledCounter?.inc({ source: job.data.source, retrycount: job.retrycount });
+    this.requestsHandledCounter?.inc({ source: job.data.source, retrycount: job.retryCount });
   }
 
   private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
@@ -208,8 +211,7 @@ export class TilesManager {
               continue;
             }
           }
-
-          tileArr.push({ ...this.baseQueueConfig, name: this.tilesQueueName, data: { ...tile, parent: id, state, force: isTileForced } });
+          tileArr.push({ ...this.baseQueueConfig, data: { ...tile, parent: id, state, force: isTileForced } });
           if (tileArr.length >= this.batchSize) {
             await this.populateTilesQueue(tileArr, 'api');
             tileArr = [];
@@ -238,7 +240,6 @@ export class TilesManager {
         for await (const tile of tilesGenerator) {
           tileMap.set(stringifyTile(tile), {
             ...this.baseQueueConfig,
-            name: this.tilesQueueName,
             data: { ...tile, parent: id, state, force: isTileForced },
           });
           if (tileMap.size >= this.batchSize) {
@@ -257,7 +258,7 @@ export class TilesManager {
   private async populateTilesQueue(tiles: JobInsert<TileQueuePayload>[], source: Source): Promise<void> {
     this.logger.info({ msg: 'populating tiles queue', queueName: this.tilesQueueName, itemCount: tiles.length, source });
 
-    await this.pgboss.insert(tiles);
+    await this.pgboss.insert(this.tilesQueueName, tiles);
 
     tiles.forEach((tile) => this.metatilesPopulatedCounter?.inc({ source, z: tile.data?.z }));
     this.requestBatchesHandledCounter?.inc({ source });
