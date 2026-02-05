@@ -7,6 +7,7 @@ import { bbox } from '@turf/turf';
 import { FeatureCollection } from 'geojson';
 import { API_STATE } from '@map-colonies/detiler-common';
 import { ConfigType, getConfig } from '@src/common/config';
+import { queueNames } from '@tests/helpers/constants';
 import { RequestAlreadyInQueueError } from '../../../../src/tiles/models/errors';
 import { TileRequestQueuePayload, TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
 import { TilesManager } from '../../../../src/tiles/models/tilesManager';
@@ -15,7 +16,7 @@ import { boundingBoxToPolygon } from '../../../../src/tiles/models/util';
 import { hashValue } from '../../../../src/common/util';
 
 const logger = jsLogger({ enabled: false });
-const queueConfig = { retryDelay: 1 };
+const queueConfig = { retryDelay: 1, expireInSeconds: 60 };
 
 describe('tilesManager', () => {
   let config: ConfigType;
@@ -59,7 +60,7 @@ describe('tilesManager', () => {
   describe('#addBboxTilesRequestToQueue', () => {
     it('resolve without error if request is a valid bbox', async function () {
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const request: TilesByAreaRequest[] = [{ area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 }];
       const expectedPayload: TileRequestQueuePayload = {
         items: [{ area: { west: 90, south: 90, east: -90, north: -90 }, minZoom: 0, maxZoom: 0 }],
@@ -73,13 +74,13 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
     it('resolve without error if request is a valid geojson', async function () {
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const request: TilesByAreaRequest[] = [{ area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 }];
       const expectedPayload: TileRequestQueuePayload = { items: [{ area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 }], source: 'api', state: API_STATE };
 
@@ -89,13 +90,13 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
     it('resolve without error if request is a mix of valid bbox and geojson', async function () {
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const request: TilesByAreaRequest[] = [
         { area: GOOD_FEATURE, minZoom: 0, maxZoom: 0 },
         { area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 },
@@ -115,13 +116,13 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
     it('resolve without error if request is a mix of valid bbox and feature geojson, bbox and featureCollection geojson', async function () {
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const featureCollection: FeatureCollection = {
         type: 'FeatureCollection',
         features: [GOOD_FEATURE, GOOD_FEATURE],
@@ -148,13 +149,13 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
     it('resolve without error if request is a mix with force attibute', async function () {
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const featureCollection: FeatureCollection = {
         type: 'FeatureCollection',
         features: [GOOD_FEATURE, GOOD_FEATURE],
@@ -182,7 +183,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
@@ -211,7 +212,7 @@ describe('tilesManager', () => {
       };
 
       const sendMock = jest.fn().mockResolvedValue('ok');
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const featureCollection: FeatureCollection = {
         type: 'FeatureCollection',
         features: [GOOD_FEATURE, GOOD_FEATURE],
@@ -239,13 +240,13 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
-        singletonSeconds: 60,
+        singletonSeconds: queueConfig.expireInSeconds,
       });
     });
 
     it('should throw RequestAlreadyInQueueError if the request is the same', async function () {
       const sendMock = jest.fn().mockResolvedValue(null);
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const request: TilesByAreaRequest[] = [{ area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 }];
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
@@ -255,7 +256,7 @@ describe('tilesManager', () => {
 
     it('should throw the error thrown by pg-boss', async function () {
       const sendMock = jest.fn().mockRejectedValue(new Error('test'));
-      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ send: sendMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
       const request: TilesByAreaRequest[] = [{ area: [90, 90, -90, -90], minZoom: 0, maxZoom: 0 }];
 
       const resource = tilesManager.addArealTilesRequestToQueue(request);
@@ -267,7 +268,13 @@ describe('tilesManager', () => {
   describe('#isAlive', () => {
     it('should resolve without error', async function () {
       const getQueueStatsMock = jest.fn().mockResolvedValue({ totalCount: 0 });
-      const tilesManager = new TilesManager({ getQueueStats: getQueueStatsMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager(
+        { getQueueStats: getQueueStatsMock } as unknown as PgBoss,
+        configMock,
+        logger,
+        queueNames,
+        new client.Registry()
+      );
 
       const resource = tilesManager.isAlive();
 
@@ -276,7 +283,13 @@ describe('tilesManager', () => {
 
     it('should throw the error thrown by pg-boss', async function () {
       const getQueueStatsMock = jest.fn().mockRejectedValue(new Error('test'));
-      const tilesManager = new TilesManager({ getQueueStats: getQueueStatsMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager(
+        { getQueueStats: getQueueStatsMock } as unknown as PgBoss,
+        configMock,
+        logger,
+        queueNames,
+        new client.Registry()
+      );
 
       const isAlivePromise = tilesManager.isAlive();
 
@@ -287,7 +300,7 @@ describe('tilesManager', () => {
   describe('#addTilesToQueue', () => {
     it('should insert the tiles into the queue', async function () {
       const insertMock = jest.fn().mockResolvedValue(['ok']);
-      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
       const promise = tilesManager.addTilesToQueue([
         { x: 9794, y: 2650, z: 16, metatile: 8 },
@@ -308,7 +321,7 @@ describe('tilesManager', () => {
 
     it('should insert the tiles into the queue with force attribute if requst is configured so', async function () {
       const insertMock = jest.fn().mockResolvedValue(['ok']);
-      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
       const promise = tilesManager.addTilesToQueue(
         [
@@ -355,7 +368,7 @@ describe('tilesManager', () => {
       };
 
       const insertMock = jest.fn().mockResolvedValue(['ok']);
-      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
       const promise = tilesManager.addTilesToQueue([
         { x: 9794, y: 2650, z: 16, metatile: 8 },
@@ -376,7 +389,7 @@ describe('tilesManager', () => {
 
     it('should add the same parent id to all the tiles added', async function () {
       const insertMock = jest.fn().mockResolvedValue(['ok']);
-      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+      const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
       const promise = tilesManager.addTilesToQueue([
         { x: 9794, y: 2650, z: 16, metatile: 8 },
@@ -397,7 +410,7 @@ describe('tilesManager', () => {
     describe('api requests', () => {
       it('should insert the tile generated by a bbox request to the queue', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -420,15 +433,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8 },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: undefined, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should insert the tile generated by a bbox request to the queue with force attribute if request is configured so', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -452,8 +465,8 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true, parent: undefined, state: undefined },
           },
         ]);
       });
@@ -483,7 +496,7 @@ describe('tilesManager', () => {
         };
 
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -506,15 +519,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true, parent: undefined, state: undefined },
           },
         ]);
       });
 
       it('should insert the tile generated by bbox and geojson request to the queue', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -563,7 +576,7 @@ describe('tilesManager', () => {
 
       it('should insert the tile generated by a geojson request to the queue', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -586,15 +599,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8 },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: undefined, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should insert tiles generated by bbox request in multiple zoom levels', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -622,7 +635,7 @@ describe('tilesManager', () => {
 
       it('should insert tiles generated by geojson request in multiple zoom levels', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -650,7 +663,7 @@ describe('tilesManager', () => {
 
       it('should insert tiles generated by bbox into the queue in multiple batches', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -692,7 +705,7 @@ describe('tilesManager', () => {
 
       it('should insert tiles generated by geojson into the queue in multiple batches', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -734,7 +747,7 @@ describe('tilesManager', () => {
 
       it('should add the id of the parent tile request to the tiles generated by bbox request', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -759,15 +772,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should add the id of the parent tile request to the tiles generated by geojson request', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -792,15 +805,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should filter out non intersected tiles for geojson request', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const [west, south, east, north] = bbox(GOOD_LARGE_FEATURE);
         const boundingBox = { west, south, east, north };
@@ -845,7 +858,7 @@ describe('tilesManager', () => {
     describe('expired tiles requests', () => {
       it('should insert the tile to the queue', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -870,15 +883,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should insert the tile to the queue with force attribute if request configured so', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -904,8 +917,8 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true, state: undefined },
           },
         ]);
       });
@@ -935,7 +948,7 @@ describe('tilesManager', () => {
         };
 
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -960,15 +973,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true, state: undefined },
           },
         ]);
       });
 
       it('should insert tiles in multiple zoom levels', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -996,7 +1009,7 @@ describe('tilesManager', () => {
 
       it('should insert tiles with the parent state', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -1025,7 +1038,7 @@ describe('tilesManager', () => {
 
       it('should insert tiles into the queue in multiple batches', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
 
         const promise = tilesManager.handleTileRequest({
           data: {
@@ -1067,7 +1080,7 @@ describe('tilesManager', () => {
 
       it('should not insert the same tile twice', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -1097,15 +1110,15 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, state: undefined, force: undefined },
           },
         ]);
       });
 
       it('should add the id of the tile request to the tiles', async function () {
         const insertMock = jest.fn().mockResolvedValue(['ok']);
-        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, queueNames, new client.Registry());
         const id = faker.string.uuid();
 
         const promise = tilesManager.handleTileRequest({
@@ -1130,8 +1143,8 @@ describe('tilesManager', () => {
         expect(queueName).toBe('tiles-test');
         expect(args).toEqual([
           {
-            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
-            retryDelay: 1,
+            ...queueConfig,
+            data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, state: undefined, force: undefined },
           },
         ]);
       });
