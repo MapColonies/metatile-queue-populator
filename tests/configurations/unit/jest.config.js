@@ -6,9 +6,10 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': ['@swc/jest'],
   },
-  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue|pg-boss|serialize-error|non-error)/)'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   testMatch: ['<rootDir>/tests/unit/**/*.spec.ts'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
   coverageReporters: ['text', 'html'],
   collectCoverage: true,
   collectCoverageFrom: [
@@ -27,7 +28,7 @@ module.exports = {
     ['jest-html-reporters', { multipleReportsUnitePath: './reports', pageTitle: 'unit', publicPath: './reports', filename: 'unit.html' }],
   ],
   rootDir: '../../../.',
-  setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
+  setupFiles: ['<rootDir>/tests/configurations/jest.unit.setup.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/matchers.js', '<rootDir>/tests/configurations/jest.setupAfterEnv.js'],
   testEnvironment: 'node',
   coverageThreshold: {

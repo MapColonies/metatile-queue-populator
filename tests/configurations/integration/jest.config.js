@@ -6,7 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': ['@swc/jest'],
   },
-  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue)/)'],
+  transformIgnorePatterns: ['/node_modules/(?!(?:@turf|kdbush|geokdbush|tinyqueue|pg-boss|serialize-error|non-error)/)'],
   coverageReporters: ['text', 'html'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
   collectCoverage: true,
@@ -22,6 +22,7 @@ module.exports = {
   coverageDirectory: '<rootDir>/coverage/integration',
   rootDir: '../../../.',
   testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
   setupFilesAfterEnv: [
     'jest-openapi',
