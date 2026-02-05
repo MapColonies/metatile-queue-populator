@@ -1,7 +1,8 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { ConfigType } from '@src/common/config';
+import { queueNames } from '@tests/helpers/constants';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 
 describe('PgBossJobQueueProvider', () => {
@@ -9,9 +10,10 @@ describe('PgBossJobQueueProvider', () => {
   let configMock: ConfigType;
   let pgbossMock: {
     on: jest.Mock;
+    createQueue: jest.Mock;
     start: jest.Mock;
     stop: jest.Mock;
-    getQueueSize: jest.Mock;
+    getQueueStats: jest.Mock;
     complete: jest.Mock;
     fail: jest.Mock;
     fetch: jest.Mock;
@@ -20,9 +22,10 @@ describe('PgBossJobQueueProvider', () => {
   beforeAll(() => {
     pgbossMock = {
       on: jest.fn(),
+      createQueue: jest.fn(),
       start: jest.fn(),
       stop: jest.fn(),
-      getQueueSize: jest.fn(),
+      getQueueStats: jest.fn(),
       complete: jest.fn(),
       fail: jest.fn(),
       fetch: jest.fn(),
@@ -35,7 +38,10 @@ describe('PgBossJobQueueProvider', () => {
             return {
               projectName: 'queue-name',
               requestQueueCheckIntervalSec: 0.1,
-              consumeCondition: 0.2,
+              consumeCondition: {
+                enabled: true,
+                conditionCheckIntervalSec: 0.2,
+              },
             };
           default:
             break;
@@ -49,7 +55,7 @@ describe('PgBossJobQueueProvider', () => {
   });
 
   beforeEach(function () {
-    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, configMock, jsLogger({ enabled: false }));
+    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, configMock, jsLogger({ enabled: false }), queueNames);
   });
 
   afterEach(function () {
@@ -58,7 +64,7 @@ describe('PgBossJobQueueProvider', () => {
 
   describe('#activeQueueName', () => {
     it('should return the queue name', () => {
-      expect(provider.activeQueueName).toBe('tiles-requests-queue-name');
+      expect(provider.activeQueueName).toBe(queueNames.requestQueue);
     });
   });
 
@@ -68,7 +74,7 @@ describe('PgBossJobQueueProvider', () => {
       const job2 = [{ id: 'id2', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue([]);
       provider.startQueue();
       const queuePromise = provider.consumeQueue(fnMock);
       await setTimeoutPromise(1000);
@@ -87,7 +93,7 @@ describe('PgBossJobQueueProvider', () => {
       const job3 = [{ id: 'id3', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce([]);
 
       const conditionFnMock = jest.fn();
       conditionFnMock.mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValueOnce(false);
@@ -120,7 +126,7 @@ describe('PgBossJobQueueProvider', () => {
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
-      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
+      expect(pgbossMock.fail).toHaveBeenCalledWith(queueNames.requestQueue, id, fetchError);
     });
   });
 });

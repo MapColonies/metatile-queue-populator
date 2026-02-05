@@ -5,6 +5,7 @@ import { DependencyContainer } from 'tsyringe';
 import httpStatusCodes from 'http-status-codes';
 import { getApp } from '@src/app';
 import { SERVICES } from '@src/common/constants';
+import { PGBOSS_PROVIDER } from '@src/tiles/jobQueueProvider/pgbossFactory';
 import { DocsRequestSender } from './helpers/docsRequestSender';
 
 describe('docs', function () {
@@ -16,6 +17,10 @@ describe('docs', function () {
       override: [
         { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
         { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+        {
+          token: PGBOSS_PROVIDER,
+          provider: { useValue: { start: jest.fn().mockResolvedValue(undefined), createQueue: jest.fn().mockResolvedValue(undefined) } },
+        },
       ],
       useChild: true,
     });

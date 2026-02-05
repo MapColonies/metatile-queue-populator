@@ -3,17 +3,18 @@ import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, QUEUE_NAMES, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
 import { consumeAndPopulateFactory } from './requestConsumer';
+import { queuesNameFactory, type QueueNames } from './tiles/jobQueueProvider/queuesNameFactory';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -72,6 +73,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       {
+        token: QUEUE_NAMES,
+        provider: {
+          useFactory: instanceCachingFactory(queuesNameFactory),
+        },
+      },
+      {
         token: TilesManager,
         provider: {
           useClass: TilesManager,
@@ -94,8 +101,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
         postInjectionHook: async (container): Promise<void> => {
           const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
+          const queuesName = container.resolve<QueueNames>(QUEUE_NAMES);
 
           await pgBoss.start();
+
+          const promise = Object.values(queuesName).map(async (queue: string) => pgBoss.createQueue(queue));
+          await Promise.all(promise);
         },
       },
       { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },
@@ -103,6 +114,18 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },
         options: { lifecycle: Lifecycle.Singleton },
+        postInjectionHook: (container): void => {
+          const queueProv = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+          cleanupRegistry.register({
+            id: JOB_QUEUE_PROVIDER,
+            func: async () =>
+              new Promise((resolve) => {
+                queueProv.stopQueue();
+                resolve(true);
+              }),
+          });
+        },
       },
       {
         token: HEALTHCHECK,

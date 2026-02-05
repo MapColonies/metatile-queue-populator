@@ -52,7 +52,7 @@
     "retryBackoff": true,
     "retryLimit": 3,
     "retryDelaySeconds": 60,
-    "retentionHours": 87660
+    "retentionSeconds": 315576000
   },
   "db": {
     "host": "localhost",
@@ -60,6 +60,8 @@
     "username": "postgres",
     "password": "postgres",
     "schema": "pgboss",
+    "createSchema": true,
+    "migrate": true,
     "ssl": {
       "enabled": false,
       "ca": "",

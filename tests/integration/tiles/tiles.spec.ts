@@ -5,14 +5,15 @@ import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
 import { DependencyContainer } from 'tsyringe';
-import PgBoss from 'pg-boss';
+import { type PgBoss, JobWithMetadata } from 'pg-boss';
 import { Tile } from '@map-colonies/tile-calc';
-import { type vectorMetatileQueuePopulatorFullV1Type } from '@map-colonies/schemas';
+import { type vectorMetatileQueuePopulatorFullV2Type } from '@map-colonies/schemas';
 import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
+import { queueNames } from '@tests/helpers/constants';
 import { ConfigType, getConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
-import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, QUEUE_NAMES, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
@@ -21,11 +22,11 @@ import { PGBOSS_PROVIDER } from '../../../src/tiles/jobQueueProvider/pgbossFacto
 import { TilesRequestSender } from './helpers/requestSender';
 import { getBbox } from './helpers/generator';
 
-async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
+async function waitForJobToBeResolved(boss: PgBoss, queueName: string, jobId: string): Promise<JobWithMetadata<unknown> | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
   for await (const _unused of setIntervalPromise(10)) {
-    const job = await boss.getJobById(jobId);
-    if (job?.completedon) {
+    const [job] = await boss.findJobs(queueName, { id: jobId });
+    if (job.completedOn) {
       return job;
     }
   }
@@ -57,7 +58,7 @@ describe('tiles', function () {
                       ...config.get('app'),
                       projectName: 'app-api',
                       enableRequestQueueHandling: false,
-                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV2Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -70,6 +71,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -334,7 +336,7 @@ describe('tiles', function () {
       describe('POST /tiles/area', function () {
         it('should return 500 if the queue is not available', async function () {
           const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
-          jest.spyOn(boss, 'sendOnce').mockRejectedValueOnce(new Error('failed'));
+          jest.spyOn(boss, 'send').mockRejectedValueOnce(new Error('failed'));
 
           const bbox = getBbox();
 
@@ -378,7 +380,7 @@ describe('tiles', function () {
                       consumeCondition: {
                         enabled: false,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV2Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -391,6 +393,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -398,7 +401,7 @@ describe('tiles', function () {
 
     beforeEach(async function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
-      await boss.clearStorage();
+      await boss.deleteAllJobs();
     });
 
     afterAll(async function () {
@@ -426,17 +429,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
@@ -476,17 +482,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
@@ -524,17 +533,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
@@ -573,17 +585,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true },
@@ -621,17 +636,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
@@ -674,17 +692,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 15);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 15 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39176, y: 10600, z: 18, metatile: 8 },
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
@@ -726,9 +747,9 @@ describe('tiles', function () {
 
       const jobId1 = await boss.send('tiles-requests-test-requests', geojsonRequest);
 
-      await waitForJobToBeResolved(boss, jobId1 as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId1 as string);
 
-      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
+      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 1000 });
 
       const bboxRequest = {
         items: [
@@ -743,17 +764,17 @@ describe('tiles', function () {
 
       const jobId2 = await boss.send('tiles-requests-test-requests', bboxRequest);
 
-      await waitForJobToBeResolved(boss, jobId2 as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId2 as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const bboxResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
+      const bboxResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 1000 });
 
       expect(geojsonResult).not.toBeNull();
       expect(bboxResult).not.toBeNull();
-      expect(geojsonResult!.length).toBeLessThan(bboxResult!.length);
+      expect(geojsonResult.length).toBeLessThan(bboxResult.length);
     });
   });
 
@@ -782,7 +803,7 @@ describe('tiles', function () {
                         conditionCheckIntervalSec: 1,
                         tilesQueueSizeLimit: 2,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV2Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -795,6 +816,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -802,7 +824,7 @@ describe('tiles', function () {
 
     beforeEach(async function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
-      await boss.clearStorage();
+      await boss.deleteAllJobs();
     });
 
     afterAll(async function () {
@@ -830,9 +852,9 @@ describe('tiles', function () {
 
       const jobId1 = await boss.send('tiles-requests-test-requests', request1);
 
-      await waitForJobToBeResolved(boss, jobId1 as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId1 as string);
 
-      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', 5000);
+      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 5000 });
 
       const bboxRequest = {
         items: [
@@ -853,11 +875,11 @@ describe('tiles', function () {
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const bboxResult = await boss.fetch<Tile>('tiles-test-requests', 1000);
+      const bboxResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 1000 });
 
       expect(geojsonResult).not.toBeNull();
-      expect(bboxResult).toBeNull();
-      const currentRequestsQueueSize = await boss.getQueueSize('tiles-requests-test-requests');
+      expect(bboxResult).toEqual([]);
+      const { queuedCount: currentRequestsQueueSize } = await boss.getQueueStats('tiles-requests-test-requests');
       expect(currentRequestsQueueSize).toBe(1);
     });
   });
@@ -889,7 +911,7 @@ describe('tiles', function () {
                         api: true,
                         expiredTiles: true,
                       },
-                    } satisfies Partial<vectorMetatileQueuePopulatorFullV1Type['app']>;
+                    } satisfies Partial<vectorMetatileQueuePopulatorFullV2Type['app']>;
                   }
                   return config.get(key);
                 }) as ConfigType['get'],
@@ -902,6 +924,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -909,7 +932,7 @@ describe('tiles', function () {
 
     beforeEach(async function () {
       const boss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
-      await boss.clearStorage();
+      await boss.deleteAllJobs();
     });
 
     afterAll(async function () {
@@ -938,17 +961,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
@@ -986,17 +1012,20 @@ describe('tiles', function () {
 
       const jobId = await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, jobId as string);
+      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
 
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
 
-      const result = await boss.fetch<Tile>('tiles-test-requests', 14);
+      const result = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 14 });
       expect(result).not.toBeNull();
 
-      await boss.complete(result!.map((r) => r.id));
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      await boss.complete(
+        'tiles-test-requests',
+        result.map((r) => r.id)
+      );
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true },

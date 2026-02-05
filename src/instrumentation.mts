@@ -4,7 +4,7 @@
 import { tracingFactory } from './common/tracing.js';
 import { getConfig, initConfig } from './common/config.js';
 
-await initConfig();
+await initConfig(true);
 
 const config = getConfig();
 

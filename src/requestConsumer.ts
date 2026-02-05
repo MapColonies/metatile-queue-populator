@@ -1,5 +1,5 @@
 import { Logger } from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { FactoryFunction } from 'tsyringe';
 import { JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
@@ -21,9 +21,10 @@ export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (
 
   if (appConfig.consumeCondition.enabled) {
     conditionFn = async (): Promise<boolean> => {
-      const currentSize = await pgBoss.getQueueSize(tilesManager.tilesQueueName, { before: 'completed' });
-      logger.debug({ msg: 'condition function', queueName: tilesManager.tilesQueueName, size: currentSize });
-      return currentSize <= (appConfig.consumeCondition.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
+      const { totalCount } = await pgBoss.getQueueStats(tilesManager.tilesQueueName);
+
+      logger.debug({ msg: 'condition function', queueName: tilesManager.tilesQueueName, size: totalCount });
+      return totalCount <= (appConfig.consumeCondition.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
     };
   }
 

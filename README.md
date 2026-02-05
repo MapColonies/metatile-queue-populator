@@ -52,7 +52,16 @@ each item on this queue is a metatile in the size of metatile property located i
 - `QUEUE_JOBS_RETRY_BACKOFF` - Default: true. Enables exponential backoff retries based on retryDelay instead of a fixed delay. Sets initial retryDelay to 1 if not set.
 - `QUEUE_JOBS_RETRY_LIMIT` - Default: 3. Max number of retries of failed jobs.
 - `QUEUE_JOBS_RETRY_DELAY_SECONDS` - Default: 60. Delay between retries of failed jobs, in seconds.
-- `QUEUE_JOBS_RETENTION_HOURS` - Default: 87660. How many hours a job may be in created or retry state before it's archived. Must be >=1
+- `QUEUE_JOBS_RETENTION_SECONDS` - Default: 315576000. How many seconds a job may be in created or retry state before it's archived. Must be >=1
+- `DB_CREATE_SCHEMA` - Default: false. enable pg-boss schema creation at startup
+- `DB_RUN_MIGRATE` - Default: false. enable pg-boss schema migrations at startup
 - `APP_CONSUME_CONDITION_ENABLED` - Pre-request consumption flag for conditions validation, current condition is tiles queue size (see `APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT`)
 - `APP_CONSUME_CONDITION_TILES_QUEUE_SIZE_LIMIT` - The max number of tiles in the tiles queue allowed before the request consumption
 - `APP_CONSUME_CONDITION_CHECK_INTERVAL_SEC` - upon invalid match to the consume condition, the duration in seconds to wait until the next consume condition validation
+
+## pg-boss migrations
+pg-boss v12 requires its database schema to be created and migrated before starting the service. Run migrations with the pg-boss CLI using your database connection (or `PGBOSS_*` environment variables):
+
+```bash
+npx pg-boss migrate --connection-string postgres://user:pass@host:5432/database --schema pgboss
+```
