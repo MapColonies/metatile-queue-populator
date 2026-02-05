@@ -4,15 +4,14 @@ import { type PgBoss, JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { type ConfigType } from '@src/common/config';
 import { vectorMetatileQueuePopulatorSharedV1Type } from '@map-colonies/schemas';
-import { MILLISECONDS_IN_SECOND, SERVICES } from '../../common/constants';
-import { TILE_REQUEST_QUEUE_NAME_PREFIX } from '../models/constants';
+import { MILLISECONDS_IN_SECOND, QUEUES_NAME, SERVICES } from '../../common/constants';
 import { type ConditionFn, JobQueueProvider } from './intefaces';
 import { PGBOSS_PROVIDER } from './pgbossFactory';
+import { type QueuesName } from './queuesNameFactory';
 
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
   private isRunning = true;
-  private readonly queueName: string;
   private readonly queueCheckTimeout: number;
   private readonly consumeCondition: vectorMetatileQueuePopulatorSharedV1Type['app']['consumeCondition'];
 
@@ -21,31 +20,34 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public constructor(
     @inject(PGBOSS_PROVIDER) private readonly pgBoss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
-    @inject(SERVICES.LOGGER) private readonly logger: Logger
+    @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    @inject(QUEUES_NAME) private readonly queuesName: QueuesName
   ) {
     const appConfig = config.get('app');
-    this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
     this.consumeCondition = appConfig.consumeCondition;
   }
 
   public get activeQueueName(): string {
-    return this.queueName;
+    return this.queuesName.requestQueue;
   }
 
-  public startQueue(): void {
-    this.logger.debug({ msg: 'starting queue', queueName: this.queueName });
-    this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
+  public async startQueue(): Promise<void> {
+    this.logger.debug({ msg: 'starting queue', queueName: this.activeQueueName });
+    await this.pgBoss.createQueue(this.queuesName.requestQueue);
+    await this.pgBoss.createQueue(this.queuesName.tilesQueue);
 
+    this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
     this.isRunning = true;
   }
 
   public stopQueue(): void {
-    this.logger.debug({ msg: 'stopping queue', queueName: this.queueName });
+    this.logger.debug({ msg: 'stopping queue', queueName: this.activeQueueName });
     this.isRunning = false;
   }
 
   public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: ConditionFn): Promise<void> {
+    await this.startQueue();
     this.logger.info({ msg: 'started consuming queue' });
 
     for await (const job of this.getJobsIterator<T>(conditionFn)) {
@@ -87,17 +89,17 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
         continue;
       }
 
-      const jobs = await this.pgBoss.fetch<T>(this.queueName, { batchSize: 1, includeMetadata: true });
+      const jobs = await this.pgBoss.fetch<T>(this.activeQueueName, { batchSize: 1, includeMetadata: true });
 
       if (jobs.length === 0) {
-        this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
+        this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.activeQueueName, timeout: this.queueCheckTimeout });
         await setTimeoutPromise(this.queueCheckTimeout);
         continue;
       }
 
       yield jobs[0];
 
-      this.logger.info({ msg: 'next queue check after timeout', queueName: this.queueName, timeout: this.queueCheckTimeout });
+      this.logger.info({ msg: 'next queue check after timeout', queueName: this.activeQueueName, timeout: this.queueCheckTimeout });
       await setTimeoutPromise(this.queueCheckTimeout);
     }
   }
