@@ -1,6 +1,6 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { ConfigType } from '@src/common/config';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 
@@ -11,7 +11,7 @@ describe('PgBossJobQueueProvider', () => {
     on: jest.Mock;
     start: jest.Mock;
     stop: jest.Mock;
-    getQueueSize: jest.Mock;
+    getQueueStats: jest.Mock;
     complete: jest.Mock;
     fail: jest.Mock;
     fetch: jest.Mock;
@@ -22,7 +22,7 @@ describe('PgBossJobQueueProvider', () => {
       on: jest.fn(),
       start: jest.fn(),
       stop: jest.fn(),
-      getQueueSize: jest.fn(),
+      getQueueStats: jest.fn(),
       complete: jest.fn(),
       fail: jest.fn(),
       fetch: jest.fn(),
@@ -68,7 +68,7 @@ describe('PgBossJobQueueProvider', () => {
       const job2 = [{ id: 'id2', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue([]);
       provider.startQueue();
       const queuePromise = provider.consumeQueue(fnMock);
       await setTimeoutPromise(1000);
@@ -87,7 +87,7 @@ describe('PgBossJobQueueProvider', () => {
       const job3 = [{ id: 'id3', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce([]);
 
       const conditionFnMock = jest.fn();
       conditionFnMock.mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValueOnce(false);
@@ -120,7 +120,7 @@ describe('PgBossJobQueueProvider', () => {
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
-      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
+      expect(pgbossMock.fail).toHaveBeenCalledWith('tiles-requests-queue-name', id, fetchError);
     });
   });
 });
