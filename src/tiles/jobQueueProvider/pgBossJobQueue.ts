@@ -32,11 +32,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     return this.queuesName.requestQueue;
   }
 
-  public async startQueue(): Promise<void> {
+  public startQueue(): void {
     this.logger.debug({ msg: 'starting queue', queueName: this.activeQueueName });
-    await this.pgBoss.createQueue(this.queuesName.requestQueue);
-    await this.pgBoss.createQueue(this.queuesName.tilesQueue);
-
     this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
     this.isRunning = true;
   }
@@ -47,7 +44,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   public async consumeQueue<T, R = void>(fn: (job: JobWithMetadata<T>) => Promise<R>, conditionFn?: ConditionFn): Promise<void> {
-    await this.startQueue();
+    this.startQueue();
     this.logger.info({ msg: 'started consuming queue' });
 
     for await (const job of this.getJobsIterator<T>(conditionFn)) {
