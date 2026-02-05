@@ -3,7 +3,7 @@ import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, QUEUES_NAME, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
@@ -14,6 +14,7 @@ import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRou
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
 import { TilesManager } from './tiles/models/tilesManager';
 import { consumeAndPopulateFactory } from './requestConsumer';
+import { queuesNameFactory } from './tiles/jobQueueProvider/queuesNameFactory';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -69,6 +70,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
             config.initializeMetrics(metricsRegistry);
             return metricsRegistry;
           }),
+        },
+      },
+      {
+        token: QUEUES_NAME,
+        provider: {
+          useFactory: instanceCachingFactory(queuesNameFactory),
         },
       },
       {
