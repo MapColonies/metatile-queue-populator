@@ -110,6 +110,18 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },
         options: { lifecycle: Lifecycle.Singleton },
+        postInjectionHook: (container): void => {
+          const queueProv = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+          cleanupRegistry.register({
+            id: JOB_QUEUE_PROVIDER,
+            func: async () =>
+              new Promise((resolve) => {
+                queueProv.stopQueue();
+                resolve(true);
+              }),
+          });
+        },
       },
       {
         token: HEALTHCHECK,
