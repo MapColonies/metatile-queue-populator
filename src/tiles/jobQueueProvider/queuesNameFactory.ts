@@ -3,7 +3,7 @@ import { SERVICES } from '@src/common/constants';
 import { FactoryFunction } from 'tsyringe';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from '../models/constants';
 
-export interface QueuesName {
+export interface QueueNames {
   requestQueue: string;
   tilesQueue: string;
 }

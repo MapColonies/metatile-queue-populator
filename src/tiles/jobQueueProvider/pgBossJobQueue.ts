@@ -4,10 +4,10 @@ import { type PgBoss, JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { type ConfigType } from '@src/common/config';
 import { vectorMetatileQueuePopulatorSharedV1Type } from '@map-colonies/schemas';
-import { MILLISECONDS_IN_SECOND, QUEUES_NAME, SERVICES } from '../../common/constants';
+import { MILLISECONDS_IN_SECOND, QUEUE_NAMES, SERVICES } from '../../common/constants';
 import { type ConditionFn, JobQueueProvider } from './intefaces';
 import { PGBOSS_PROVIDER } from './pgbossFactory';
-import { type QueuesName } from './queuesNameFactory';
+import { type QueueNames } from './queuesNameFactory';
 
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
@@ -21,7 +21,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     @inject(PGBOSS_PROVIDER) private readonly pgBoss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(QUEUES_NAME) private readonly queuesName: QueuesName
+    @inject(QUEUE_NAMES) private readonly queuesName: QueueNames
   ) {
     const appConfig = config.get('app');
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;

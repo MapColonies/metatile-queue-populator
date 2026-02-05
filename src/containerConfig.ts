@@ -3,7 +3,7 @@ import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, QUEUES_NAME, SERVICES, SERVICE_NAME } from '@common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, QUEUE_NAMES, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
@@ -73,7 +73,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       {
-        token: QUEUES_NAME,
+        token: QUEUE_NAMES,
         provider: {
           useFactory: instanceCachingFactory(queuesNameFactory),
         },

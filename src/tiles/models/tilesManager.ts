@@ -9,11 +9,11 @@ import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from 'geojson';
 import { type ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
-import { QUEUES_NAME, SERVICES } from '../../common/constants';
+import { QUEUE_NAMES, SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
-import { type QueuesName } from '../jobQueueProvider/queuesNameFactory';
+import { type QueueNames } from '../jobQueueProvider/queuesNameFactory';
 import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
@@ -39,7 +39,7 @@ export class TilesManager {
     @inject(PGBOSS_PROVIDER) private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(QUEUES_NAME) private readonly queuesName: QueuesName,
+    @inject(QUEUE_NAMES) private readonly queuesName: QueueNames,
     @inject(SERVICES.METRICS) registry?: client.Registry
   ) {
     const appConfig = config.get('app');
