@@ -10,9 +10,10 @@ import { Tile } from '@map-colonies/tile-calc';
 import { type vectorMetatileQueuePopulatorFullV2Type } from '@map-colonies/schemas';
 import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
+import { queueNames } from '@tests/helpers/constants';
 import { ConfigType, getConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
-import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
+import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, QUEUE_NAMES, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 import { consumeAndPopulateFactory } from '../../../src/requestConsumer';
 import { BAD_FEATURE, BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../helpers/samples';
@@ -70,6 +71,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -391,6 +393,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -490,9 +493,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
@@ -541,9 +544,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
@@ -593,9 +596,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true },
@@ -644,9 +647,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10595, z: 18, metatile: 8 },
@@ -700,9 +703,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39176, y: 10600, z: 18, metatile: 8 },
         { x: 39177, y: 10594, z: 18, metatile: 8 },
         { x: 39176, y: 10594, z: 18, metatile: 8 },
@@ -771,7 +774,7 @@ describe('tiles', function () {
 
       expect(geojsonResult).not.toBeNull();
       expect(bboxResult).not.toBeNull();
-      expect(geojsonResult!.length).toBeLessThan(bboxResult!.length);
+      expect(geojsonResult.length).toBeLessThan(bboxResult.length);
     });
   });
 
@@ -813,6 +816,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -920,6 +924,7 @@ describe('tiles', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: QUEUE_NAMES, provider: { useValue: queueNames } },
         ],
       });
       container = depContainer;
@@ -967,9 +972,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true, state: 100 },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true, state: 100 },
@@ -1018,9 +1023,9 @@ describe('tiles', function () {
 
       await boss.complete(
         'tiles-test-requests',
-        result!.map((r) => r.id)
+        result.map((r) => r.id)
       );
-      expect(result!.map((r) => r.data)).toContainSameTiles([
+      expect(result.map((r) => r.data)).toContainSameTiles([
         { x: 39177, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10594, z: 18, metatile: 8, force: true },
         { x: 39176, y: 10595, z: 18, metatile: 8, force: true },
