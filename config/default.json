@@ -52,20 +52,22 @@
     "retryBackoff": true,
     "retryLimit": 3,
     "retryDelaySeconds": 60,
-    "retentionHours": 87660
+    "retentionSeconds": 315576000
   },
   "db": {
     "host": "localhost",
     "port": 5432,
     "username": "postgres",
     "password": "postgres",
-    "schema": "pgboss",
+    "schema": "rundev",
+    "createSchema": true,
+    "migrate": true,
     "ssl": {
       "enabled": false,
       "ca": "",
       "key": "",
       "cert": ""
     },
-    "database": "postgres"
+    "database": "upgrade"
   }
 }

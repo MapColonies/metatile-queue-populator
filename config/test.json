@@ -1,10 +1,10 @@
 {
   "db": {
     "host": "localhost",
-    "schema": "public",
+    "schema": "pgboss",
     "username": "postgres",
     "password": "postgres",
-    "database": "postgres",
+    "database": "upgrade",
     "ssl": {
       "enabled": false
     }

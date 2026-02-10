@@ -1,6 +1,6 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import { type Logger } from '@map-colonies/js-logger';
-import PgBoss, { JobWithMetadata } from 'pg-boss';
+import { type PgBoss, JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { type ConfigType } from '@src/common/config';
 import { vectorMetatileQueuePopulatorSharedV1Type } from '@map-colonies/schemas';
@@ -65,17 +65,17 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       this.logger.debug({ msg: 'job fetched from queue', jobId: job.id });
       await fn(job);
       this.logger.debug({ msg: 'job completed successfully', jobId: job.id });
-      await this.pgBoss.complete(job.id);
+      await this.pgBoss.complete(this.activeQueueName, job.id);
     } catch (err) {
       const error = err as Error;
       this.logger.error({ err: error, jobId: job.id, job });
-      await this.pgBoss.fail(job.id, error);
+      await this.pgBoss.fail(this.activeQueueName, job.id, error);
     } finally {
       this.runningJobs--;
     }
   }
 
-  private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
+  private async *getJobsIterator<T>(conditionFn?: ConditionFn): AsyncGenerator<JobWithMetadata<T>> {
     const timeout = this.consumeCondition.enabled ? this.consumeCondition.conditionCheckIntervalSec * MILLISECONDS_IN_SECOND : 0;
 
     while (this.isRunning) {
@@ -87,9 +87,9 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
         continue;
       }
 
-      const jobs = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
+      const jobs = await this.pgBoss.fetch<T>(this.queueName, { batchSize: 1, includeMetadata: true });
 
-      if (jobs === null || jobs.length === 0) {
+      if (jobs.length === 0) {
         this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
         await setTimeoutPromise(this.queueCheckTimeout);
         continue;
