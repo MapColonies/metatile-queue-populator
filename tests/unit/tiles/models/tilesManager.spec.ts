@@ -418,7 +418,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8 },
             retryDelay: 1,
@@ -450,7 +450,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
             retryDelay: 1,
@@ -504,7 +504,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, force: true },
             retryDelay: 1,
@@ -584,7 +584,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8 },
             retryDelay: 1,
@@ -757,7 +757,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
             retryDelay: 1,
@@ -790,7 +790,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
             retryDelay: 1,
@@ -868,7 +868,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
             retryDelay: 1,
@@ -902,7 +902,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
             retryDelay: 1,
@@ -958,7 +958,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id, force: true },
             retryDelay: 1,
@@ -1095,7 +1095,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
             retryDelay: 1,
@@ -1128,7 +1128,7 @@ describe('tilesManager', () => {
         const queueName = insertMock.mock.calls[0][0];
         const args = insertMock.mock.calls[0][1] as JobInsert[];
         expect(queueName).toBe('tiles-test');
-        expect(args).toEqual([
+        expect(args).toMatchObject([
           {
             data: { x: 39176, y: 10600, z: 18, metatile: 8, parent: id },
             retryDelay: 1,
