@@ -15,7 +15,7 @@ import { boundingBoxToPolygon } from '../../../../src/tiles/models/util';
 import { hashValue } from '../../../../src/common/util';
 
 const logger = jsLogger({ enabled: false });
-const queueConfig = { retryDelay: 1 };
+const queueConfig = { retryDelay: 1, expireInSeconds: 60 };
 
 describe('tilesManager', () => {
   let config: ConfigType;
