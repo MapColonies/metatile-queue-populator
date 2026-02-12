@@ -10,7 +10,7 @@ import { Tile } from '@map-colonies/tile-calc';
 import { type vectorMetatileQueuePopulatorFullV2Type } from '@map-colonies/schemas';
 import { type FeatureCollection } from 'geojson';
 import { bbox } from '@turf/turf';
-import { ConfigType, getConfig } from '../../../src/common/config';
+import { ConfigType, getConfig, initConfig } from '../../../src/common/config';
 import { getApp } from '../../../src/app';
 import { CONSUME_AND_POPULATE_FACTORY, JOB_QUEUE_PROVIDER, SERVICES } from '../../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../../src/tiles/jobQueueProvider/pgBossJobQueue';
@@ -35,7 +35,8 @@ async function waitForJobToBeResolved(boss: PgBoss, queueName: string, jobId: st
 describe('tiles', function () {
   let config: ConfigType;
 
-  beforeAll(function () {
+  beforeAll(async () => {
+    await initConfig(true);
     config = getConfig();
   });
 

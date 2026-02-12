@@ -1,7 +1,7 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import { type PgBoss } from 'pg-boss';
-import { ConfigType } from '@src/common/config';
+import { ConfigType, initConfig } from '@src/common/config';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 
 describe('PgBossJobQueueProvider', () => {
@@ -17,7 +17,8 @@ describe('PgBossJobQueueProvider', () => {
     fetch: jest.Mock;
   };
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    await initConfig(true);
     pgbossMock = {
       on: jest.fn(),
       start: jest.fn(),
