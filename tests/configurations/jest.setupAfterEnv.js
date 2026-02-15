@@ -1,5 +1,5 @@
-const { initConfig } = require('../../src/common/config');
+// const { initConfig } = require('../../src/common/config');
 
-beforeAll(async () => {
-  await initConfig(true);
-});
+// beforeAll(async () => {
+//   await initConfig(true);
+// });
