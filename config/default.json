@@ -59,7 +59,7 @@
     "port": 5432,
     "username": "postgres",
     "password": "postgres",
-    "schema": "rundev",
+    "schema": "pgboss",
     "createSchema": true,
     "migrate": true,
     "ssl": {
@@ -68,6 +68,6 @@
       "key": "",
       "cert": ""
     },
-    "database": "upgrade"
+    "database": "postgres"
   }
 }
