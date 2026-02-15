@@ -8,7 +8,7 @@ import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
@@ -94,8 +94,11 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
         postInjectionHook: async (container): Promise<void> => {
           const pgBoss = container.resolve<PgBoss>(PGBOSS_PROVIDER);
-
           await pgBoss.start();
+
+          const tilesManager = container.resolve(TilesManager);
+          await pgBoss.createQueue(tilesManager.requestQueueName);
+          await pgBoss.createQueue(tilesManager.tilesQueueName);
         },
       },
       { token: TILES_ROUTER_SYMBOL, provider: { useFactory: tilesRouterFactory } },

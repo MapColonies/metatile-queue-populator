@@ -24,6 +24,8 @@ data:
   DB_HOST: {{ .host }}
   DB_NAME: {{ .database }}
   DB_SCHEMA: {{ .schema }}
+  DB_CREATE_SCHEMA: {{ .createSchema | quote }}
+  DB_RUN_MIGRATE: {{ .migrate | quote }}
   DB_PORT: {{ .port | quote }}
   {{- end -}}
   {{- with .Values.queueConfig }}
@@ -31,7 +33,7 @@ data:
   QUEUE_JOBS_RETRY_BACKOFF: {{ .retryBackoff | quote }}
   QUEUE_JOBS_RETRY_LIMIT: {{ .retryLimit | quote }}
   QUEUE_JOBS_RETRY_DELAY_SECONDS: {{ .retryDelaySeconds | quote }}
-  QUEUE_JOBS_RETENTION_HOURS: {{ .retentionHours | quote }}
+  QUEUE_JOBS_RETENTION_SECONDS: {{ .retentionSeconds | quote }}
   {{- end -}}
   FORCE_API_TILES: {{ .Values.env.force.api | quote }}
   FORCE_EXPIRED_TILES: {{ .Values.env.force.expiredTiles | quote }}

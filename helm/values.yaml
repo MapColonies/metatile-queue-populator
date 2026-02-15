@@ -61,7 +61,7 @@ queueConfig:
   retryBackoff: true
   retryLimit: 3
   retryDelaySeconds: 60
-  retentionHours: 87660
+  retentionSeconds: 315576000
 
 dbConfig:
   host: localhost
@@ -69,6 +69,8 @@ dbConfig:
   password: postgres
   database: metatile-queue-populator
   schema: pgboss
+  createSchema: true
+  migrate: true
   port: 5432
   sslAuth:
     enabled: false
