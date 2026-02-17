@@ -24,12 +24,7 @@ module.exports = {
   testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
-  setupFilesAfterEnv: [
-    'jest-openapi',
-    '<rootDir>/tests/configurations/initJestOpenapi.setup.ts',
-    '<rootDir>/tests/matchers.js',
-    '<rootDir>/tests/configurations/jest.setupAfterEnv.js',
-  ],
+  setupFilesAfterEnv: ['jest-openapi', '<rootDir>/tests/configurations/initJestOpenapi.setup.ts', '<rootDir>/tests/matchers.js'],
   reporters: [
     'default',
     [
