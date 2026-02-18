@@ -27,10 +27,10 @@ export const pgBossFactory = (dbConfig: DbConfig): PgBoss => {
   const databaseOptions = createDatabaseOptions(dbConfig);
   return new PgBoss({
     ...databaseOptions,
-    migrate: true,
-    createSchema: true,
-    supervise: false, //TODO: check if we can enable supervise
-    schedule: false,
+    // migrate: true,
+    // createSchema: true,
+    // supervise: false, //TODO: check if we can enable supervise
+    // schedule: false,
   });
 };
 
