@@ -23,7 +23,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     @inject(SERVICES.CONFIG) private readonly config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {
-    const appConfig = this.config.get('app');
+    const appConfig = config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
     this.consumeCondition = appConfig.consumeCondition;
@@ -36,7 +36,6 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public startQueue(): void {
     this.logger.debug({ msg: 'starting queue', queueName: this.queueName });
     this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
-    // new
     this.pgBoss.on('stopped', () => {
       this.logger.info({ msg: 'pg-boss stopped, halting consumer loop' });
       this.isRunning = false;

@@ -141,8 +141,7 @@ export class TilesManager {
     };
 
     const key = hashValue(payload);
-    //TODO: remove as number
-    const singletonSeconds = this.baseQueueConfig.expireInSeconds as number;
+    const singletonSeconds = this.baseQueueConfig.expireInSeconds;
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
