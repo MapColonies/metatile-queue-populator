@@ -1,19 +1,20 @@
 import { randomUUID as uuidv4 } from 'crypto';
 import { type Logger } from '@map-colonies/js-logger';
-import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
+import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox, lonLatZoomToTile } from '@map-colonies/tile-calc';
 import { API_STATE } from '@map-colonies/detiler-common';
 import { type PgBoss, JobInsert, JobWithMetadata } from 'pg-boss';
+import { Pool } from 'pg';
 import { inject, injectable } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from 'geojson';
 import { type ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
-import { SERVICES } from '../../common/constants';
+import { DB_POOL_PROVIDER, SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
-import { Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
+import { LastTile, Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
 import { areaToBoundingBox, boundingBoxToPolygon, stringifyTile } from './util';
@@ -33,11 +34,14 @@ export class TilesManager {
   private readonly shouldForceApiTiles: boolean;
   private readonly shouldForceExpiredTiles: boolean;
   private readonly baseQueueConfig: JobInsertConfig;
+  private readonly pgBossSchema: string;
+  private readonly completedJobsCleanupThreshold: number;
 
   public constructor(
     @inject(PGBOSS_PROVIDER) private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
+    @inject(DB_POOL_PROVIDER) private readonly cleanupPool: Pool,
     @inject(SERVICES.METRICS) registry?: client.Registry
   ) {
     const appConfig = config.get('app');
@@ -47,9 +51,11 @@ export class TilesManager {
     this.metatile = appConfig.metatileSize;
     this.shouldForceApiTiles = appConfig.force.api;
     this.shouldForceExpiredTiles = appConfig.force.expiredTiles;
+    this.completedJobsCleanupThreshold = appConfig.completedJobsCleanupThreshold;
 
     const { retryDelaySeconds, ...queueConfig } = config.get('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
+    this.pgBossSchema = config.get('db').schema;
 
     this.logger.info({
       msg: 'tiles manager initialized',
@@ -111,22 +117,27 @@ export class TilesManager {
   }
 
   public async addArealTilesRequestToQueue(request: TilesByAreaRequest[], force?: boolean): Promise<void> {
+    const priority = request.reduce((max, item) => Math.max(max, item.priority ?? 0), 0);
+
+    const items = request.flatMap((item) => {
+      if (Array.isArray(item.area)) {
+        const [west, south, east, north] = item.area;
+        return { ...item, area: { west, south, east, north } };
+      }
+      if (item.area.type === 'FeatureCollection') {
+        return item.area.features.map((feature) => ({ ...item, area: feature }));
+      }
+      return { ...item, area: item.area };
+    });
+
     const payload: TileRequestQueuePayload = {
-      items: request.flatMap((item) => {
-        if (Array.isArray(item.area)) {
-          const [west, south, east, north] = item.area;
-          return { ...item, area: { west, south, east, north } };
-        }
-
-        if (item.area.type === 'FeatureCollection') {
-          return item.area.features.map((feature) => ({ ...item, area: feature }));
-        }
-
-        return { ...item, area: item.area };
-      }),
+      items,
       source: 'api',
       state: API_STATE,
       force: this.shouldForceApiTiles ? this.shouldForceApiTiles : force,
+      batchIndex: 0,
+      itemIndex: 0,
+      priority,
     };
 
     const key = hashValue(payload);
@@ -135,7 +146,13 @@ export class TilesManager {
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
-    const res = await this.pgboss.send(this.requestQueueName, payload, { ...this.baseQueueConfig, singletonKey: key, singletonSeconds });
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const res = await this.pgboss.send(this.requestQueueName, payload, {
+      ...this.baseQueueConfig,
+      singletonKey: key,
+      singletonSeconds,
+      priority: priority ?? 0,
+    });
 
     if (res === null) {
       this.logger.error({ msg: 'request already in queue', queueName: this.requestQueueName, key, payload });
@@ -191,35 +208,108 @@ export class TilesManager {
 
   private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
     const {
-      data: { items, state, force },
+      data: { items, state, force, batchIndex = 0, itemIndex = 0, priority },
       id,
     } = job;
+    const lastTile = job.data.lastTile;
+    const totalBatches = batchIndex === 0 && itemIndex === 0 ? this.computeTotalBatches(items) : job.data.totalBatches;
     const isTileForced = this.shouldForceApiTiles ? this.shouldForceApiTiles : force;
+    let inserted = 0;
+    let lastCollectedTile: LastTile | undefined;
+    const tileArr: JobInsert<TileQueuePayload>[] = [];
 
-    let tileArr: JobInsert<TileQueuePayload>[] = [];
+    this.logger.debug({ msg: 'handling api tile request batch', jobId: id, itemIndex, batchIndex, lastTile });
 
-    for (const { area, minZoom, maxZoom } of items) {
+    for (const { area, minZoom, maxZoom } of items.slice(itemIndex, itemIndex + 1)) {
       const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
 
-      for (let zoom = minZoom; zoom <= maxZoom; zoom++) {
-        for await (const tile of boundingBoxToTilesGenerator(itemBBox, zoom, this.metatile)) {
-          if (fromGeojson) {
-            const tileBbox = tileToBoundingBox(tile);
-            if (!booleanIntersects(boundingBoxToPolygon(tileBbox), area as Feature)) {
-              continue;
+      let startZoom = minZoom;
+      let startY: number | undefined;
+      let startX: number | undefined;
+
+      if (lastTile) {
+        const lowerRight = lonLatZoomToTile({ lon: itemBBox.east, lat: itemBBox.south }, lastTile.z, this.metatile);
+
+        if (lastTile.x < lowerRight.x) {
+          startZoom = lastTile.z;
+          startY = lastTile.y;
+          startX = lastTile.x + 1;
+        } else if (lastTile.y < lowerRight.y) {
+          startZoom = lastTile.z;
+          startY = lastTile.y + 1;
+          startX = undefined;
+        } else {
+          startZoom = lastTile.z + 1;
+          startY = undefined;
+          startX = undefined;
+        }
+      }
+
+      this.logger.info({ msg: 'tile generation start', jobId: id, bbox: itemBBox, minZoom, maxZoom, startZoom, startX, startY, fromGeojson });
+
+      outer: for (let zoom = startZoom; zoom <= maxZoom; zoom++) {
+        const upperLeft = lonLatZoomToTile({ lon: itemBBox.west, lat: itemBBox.north }, zoom, this.metatile);
+        const lowerRight = lonLatZoomToTile({ lon: itemBBox.east, lat: itemBBox.south }, zoom, this.metatile);
+
+        const startYAtZoom = zoom === startZoom && startY !== undefined ? startY : upperLeft.y;
+
+        for (let y = startYAtZoom; y <= lowerRight.y; y++) {
+          const startXAtZoom = zoom === startZoom && y === startY && startX !== undefined ? startX : upperLeft.x;
+
+          for (let x = startXAtZoom; x <= lowerRight.x; x++) {
+            const tile: Tile = { x, y, z: zoom, metatile: this.metatile };
+
+            if (fromGeojson) {
+              const tileBbox = tileToBoundingBox(tile);
+              if (!booleanIntersects(boundingBoxToPolygon(tileBbox), area as Feature)) {
+                continue;
+              }
             }
-          }
-          tileArr.push({ ...this.baseQueueConfig, data: { ...tile, parent: id, state, force: isTileForced } });
-          if (tileArr.length >= this.batchSize) {
-            await this.populateTilesQueue(tileArr, 'api');
-            tileArr = [];
+
+            if (inserted >= this.batchSize) {
+              break outer;
+            }
+
+            tileArr.push({ ...this.baseQueueConfig, priority: priority ?? 0, data: { ...tile, parent: id, state, force: isTileForced } });
+            lastCollectedTile = { z: zoom, x, y };
+            inserted++;
           }
         }
+      }
+
+      if (tileArr.length > 0) {
+        const first = tileArr[0].data;
+        const last = tileArr[tileArr.length - 1].data;
+        this.logger.info({
+          msg: 'batch tiles range',
+          jobId: id,
+          batchIndex,
+          inserted,
+          firstTile: { x: first?.x, y: first?.y, z: first?.z },
+          lastTile: { x: last?.x, y: last?.y, z: last?.z },
+        });
       }
     }
 
     if (tileArr.length > 0) {
       await this.populateTilesQueue(tileArr, 'api');
+    }
+    const jobData = job.data as TileRequestQueuePayload<BoundingBox>;
+
+    if (inserted >= this.batchSize) {
+      await this.pgboss.send(
+        this.requestQueueName,
+        { ...jobData, batchIndex: batchIndex + 1, itemIndex, lastTile: lastCollectedTile, totalBatches },
+        { ...this.baseQueueConfig, priority: priority ?? 0 }
+      );
+      this.logger.info({ msg: 'scheduled next batch', jobId: id, itemIndex, nextBatch: batchIndex + 1, totalBatches, lastTile: lastCollectedTile });
+    } else if (itemIndex + 1 < items.length) {
+      await this.pgboss.send(
+        this.requestQueueName,
+        { ...jobData, batchIndex: 0, itemIndex: itemIndex + 1, lastTile: undefined, totalBatches },
+        { ...this.baseQueueConfig, priority: priority ?? 0 }
+      );
+      this.logger.info({ msg: 'scheduled next bbox', jobId: id, nextItemIndex: itemIndex + 1 });
     }
   }
 
@@ -260,5 +350,36 @@ export class TilesManager {
 
     tiles.forEach((tile) => this.metatilesPopulatedCounter?.inc({ source, z: tile.data?.z }));
     this.requestBatchesHandledCounter?.inc({ source });
+  }
+
+  private computeTotalBatches(items: TileRequestQueuePayload['items']): number {
+    const totalTiles = items.reduce((sum, item) => {
+      const { bbox } = areaToBoundingBox(item.area);
+      let itemTiles = 0;
+      for (let zoom = item.minZoom; zoom <= item.maxZoom; zoom++) {
+        const upperLeft = lonLatZoomToTile({ lon: bbox.west, lat: bbox.north }, zoom, this.metatile);
+        const lowerRight = lonLatZoomToTile({ lon: bbox.east, lat: bbox.south }, zoom, this.metatile);
+        itemTiles += (lowerRight.x - upperLeft.x + 1) * (lowerRight.y - upperLeft.y + 1);
+      }
+      return sum + itemTiles;
+    }, 0);
+    return Math.ceil(totalTiles / this.batchSize);
+  }
+
+  private async cleanupCompletedTileJobs(): Promise<void> {
+    const countResult = await this.cleanupPool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM ${this.pgBossSchema}.job WHERE name = $1 AND state = 'completed'`,
+      [this.tilesQueueName]
+    );
+    const completedCount = countResult.rows[0]?.count ?? 0;
+
+    this.logger.debug({ msg: 'completed tile jobs count', completedCount, threshold: this.completedJobsCleanupThreshold });
+
+    if (completedCount >= this.completedJobsCleanupThreshold) {
+      const deleteResult = await this.cleanupPool.query(`DELETE FROM ${this.pgBossSchema}.job WHERE name = $1 AND state = 'completed'`, [
+        this.tilesQueueName,
+      ]);
+      this.logger.info({ msg: 'deleted completed tile jobs', deletedCount: deleteResult.rowCount });
+    }
   }
 }

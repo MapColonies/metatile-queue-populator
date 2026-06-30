@@ -83,6 +83,9 @@ spec:
               protocol: {{ .Values.env.protocol }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.initialDelaySeconds }}
+            timeoutSeconds: {{ (.Values.livenessProbe).timeoutSeconds | default 5 }}
+            periodSeconds: {{ (.Values.livenessProbe).periodSeconds | default 10 }}
+            failureThreshold: {{ (.Values.livenessProbe).failureThreshold | default 5 }}
             httpGet:
               path: /liveness
               port: {{ .Values.env.targetPort }}

@@ -8,6 +8,7 @@ import { TilesManager } from './tiles/models/tilesManager';
 import { ConfigType } from './common/config';
 import { PGBOSS_PROVIDER } from './tiles/jobQueueProvider/pgbossFactory';
 import { type ConditionFn } from './tiles/jobQueueProvider/intefaces';
+import { LOW_WATER_MARK_RATIO } from './common/constants';
 
 export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (container) => {
   const logger = container.resolve<Logger>(SERVICES.LOGGER);
@@ -20,11 +21,23 @@ export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (
   let conditionFn: ConditionFn | undefined = undefined;
 
   if (appConfig.consumeCondition.enabled) {
-    conditionFn = async (): Promise<boolean> => {
-      const { totalCount } = await pgBoss.getQueueStats(tilesManager.tilesQueueName);
+    const highWaterMark = appConfig.consumeCondition.tilesQueueSizeLimit;
+    const lowWaterMark = Math.floor(highWaterMark * LOW_WATER_MARK_RATIO);
+    let isPaused = false;
 
-      logger.debug({ msg: 'condition function', queueName: tilesManager.tilesQueueName, size: totalCount });
-      return totalCount <= (appConfig.consumeCondition.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
+    conditionFn = async (): Promise<boolean> => {
+      const { queuedCount } = await pgBoss.getQueueStats(tilesManager.tilesQueueName);
+
+      if (!isPaused && queuedCount >= highWaterMark) {
+        isPaused = true;
+        logger.info({ msg: 'tiles queue reached high water mark, pausing consumption', queuedCount, highWaterMark });
+      } else if (isPaused && queuedCount < lowWaterMark) {
+        isPaused = false;
+        logger.info({ msg: 'tiles queue dropped below low water mark, resuming consumption', queuedCount, lowWaterMark });
+      }
+
+      logger.debug({ msg: 'consume condition check', queueName: tilesManager.tilesQueueName, queuedCount, isPaused, highWaterMark, lowWaterMark });
+      return !isPaused;
     };
   }
 

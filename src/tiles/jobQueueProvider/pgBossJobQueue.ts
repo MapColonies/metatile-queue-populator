@@ -20,10 +20,10 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   public constructor(
     @inject(PGBOSS_PROVIDER) private readonly pgBoss: PgBoss,
-    @inject(SERVICES.CONFIG) config: ConfigType,
+    @inject(SERVICES.CONFIG) private readonly config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger
   ) {
-    const appConfig = config.get('app');
+    const appConfig = this.config.get('app');
     this.queueName = `${TILE_REQUEST_QUEUE_NAME_PREFIX}-${appConfig.projectName}`;
     this.queueCheckTimeout = appConfig.requestQueueCheckIntervalSec * MILLISECONDS_IN_SECOND;
     this.consumeCondition = appConfig.consumeCondition;
@@ -36,6 +36,11 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public startQueue(): void {
     this.logger.debug({ msg: 'starting queue', queueName: this.queueName });
     this.pgBoss.on('error', (err) => this.logger.error({ msg: 'pg-boss error event', err }));
+    // new
+    this.pgBoss.on('stopped', () => {
+      this.logger.info({ msg: 'pg-boss stopped, halting consumer loop' });
+      this.isRunning = false;
+    });
 
     this.isRunning = true;
   }
@@ -56,7 +61,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       this.runningJobs++;
       this.logger.debug({ msg: 'starting job', runningJobs: this.runningJobs });
 
-      void this.handleJob(job, fn);
+      await this.handleJob(job, fn);
     }
   }
 
@@ -69,7 +74,15 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     } catch (err) {
       const error = err as Error;
       this.logger.error({ err: error, jobId: job.id, job });
-      await this.pgBoss.fail(this.activeQueueName, job.id, error);
+      if (!this.isRunning) {
+        this.logger.warn({ msg: 'pg-boss stopped mid-job, skipping fail() — job will retry after expiry', jobId: job.id });
+        return;
+      }
+      try {
+        await this.pgBoss.fail(this.activeQueueName, job.id, error);
+      } catch (failErr) {
+        this.logger.warn({ msg: 'pg-boss stopped mid-job during fail(), job will retry after expiry', jobId: job.id, err: failErr });
+      }
     } finally {
       this.runningJobs--;
     }
@@ -79,26 +92,32 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     const timeout = this.consumeCondition.enabled ? this.consumeCondition.conditionCheckIntervalSec * MILLISECONDS_IN_SECOND : 0;
 
     while (this.isRunning) {
-      const shouldConsume = conditionFn ? await conditionFn() : true;
+      try {
+        const shouldConsume = conditionFn ? await conditionFn() : true;
 
-      if (!shouldConsume) {
-        this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout });
-        await setTimeoutPromise(timeout);
-        continue;
+        if (!shouldConsume) {
+          this.logger.info({ msg: 'consume condition is falsy, waiting for a while', timeout });
+          await setTimeoutPromise(timeout);
+          continue;
+        }
+
+        const jobs = await this.pgBoss.fetch<T>(this.queueName, { batchSize: 1, includeMetadata: true });
+
+        if (jobs.length === 0) {
+          this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
+          await setTimeoutPromise(this.queueCheckTimeout);
+          continue;
+        }
+
+        yield jobs[0];
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (!this.isRunning) {
+          this.logger.info({ msg: 'consumer loop exiting due to pg-boss shutdown' });
+          return;
+        }
+        throw err;
       }
-
-      const jobs = await this.pgBoss.fetch<T>(this.queueName, { batchSize: 1, includeMetadata: true });
-
-      if (jobs.length === 0) {
-        this.logger.info({ msg: 'queue is empty, waiting for data', queueName: this.queueName, timeout: this.queueCheckTimeout });
-        await setTimeoutPromise(this.queueCheckTimeout);
-        continue;
-      }
-
-      yield jobs[0];
-
-      this.logger.info({ msg: 'next queue check after timeout', queueName: this.queueName, timeout: this.queueCheckTimeout });
-      await setTimeoutPromise(this.queueCheckTimeout);
     }
   }
 }

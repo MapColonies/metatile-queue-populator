@@ -3,12 +3,21 @@ import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
-import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
+import {
+  CONSUME_AND_POPULATE_FACTORY,
+  DB_POOL_PROVIDER,
+  HEALTHCHECK,
+  JOB_QUEUE_PROVIDER,
+  ON_SIGNAL,
+  SERVICES,
+  SERVICE_NAME,
+} from '@common/constants';
 import { getTracing } from '@common/tracing';
 import { ConfigType, getConfig } from '@common/config';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { DependencyContainer, instanceCachingFactory, instancePerContainerCachingFactory, Lifecycle } from 'tsyringe';
 import { type PgBoss } from 'pg-boss';
+import { Pool } from 'pg';
 import { PGBOSS_PROVIDER, pgBossFactory } from './tiles/jobQueueProvider/pgbossFactory';
 import { TILES_ROUTER_SYMBOL, tilesRouterFactory } from './tiles/routes/tilesRouter';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
@@ -79,6 +88,28 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         options: { lifecycle: Lifecycle.ContainerScoped },
       },
       {
+        token: DB_POOL_PROVIDER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const dbConfig = config.get('db');
+            const pool = new Pool({
+              host: dbConfig.host,
+              port: dbConfig.port,
+              user: dbConfig.username,
+              password: dbConfig.password,
+              database: dbConfig.database,
+              max: 2,
+            });
+
+            const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+            cleanupRegistry.register({ func: async () => pool.end() });
+
+            return pool;
+          }),
+        },
+      },
+      {
         token: PGBOSS_PROVIDER,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
@@ -87,7 +118,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
             const pgBoss = pgBossFactory(dbConfig);
 
             const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
-            cleanupRegistry.register({ func: pgBoss.stop.bind(pgBoss) });
+            cleanupRegistry.register({ func: () => pgBoss.stop({ graceful: true, timeout: 25000 }) });
 
             return pgBoss;
           }),

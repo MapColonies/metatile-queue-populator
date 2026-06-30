@@ -40,7 +40,9 @@
     "tilesBatchSize": 10000,
     "metatileSize": 8,
     "consumeCondition": {
-      "enabled": false
+      "enabled": true,
+      "conditionCheckIntervalSec": 300,
+      "tilesQueueSizeLimit": 400000
     },
     "force": {
       "api": false,
@@ -48,7 +50,7 @@
     }
   },
   "queue": {
-    "expireInSeconds": 600,
+    "expireInSeconds": 300,
     "retryBackoff": true,
     "retryLimit": 3,
     "retryDelaySeconds": 60,
