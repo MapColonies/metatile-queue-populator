@@ -110,7 +110,6 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
         yield jobs[0];
       } catch (err) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!this.isRunning) {
           this.logger.info({ msg: 'consumer loop exiting due to pg-boss shutdown' });
           return;

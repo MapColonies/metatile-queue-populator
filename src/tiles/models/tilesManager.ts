@@ -62,7 +62,6 @@ export class TilesManager {
     });
 
     if (registry !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const self = this;
       [
         { type: snakeCase(TILE_REQUEST_QUEUE_NAME_PREFIX), name: this.requestQueueName },
@@ -138,7 +137,6 @@ export class TilesManager {
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const res = await this.pgboss.send(this.requestQueueName, payload, {
       ...this.baseQueueConfig,
       singletonKey: key,
