@@ -24,11 +24,7 @@ export interface BaseQueuePayload {
   force?: boolean;
 }
 
-export interface LastTile {
-  z: number;
-  x: number;
-  y: number;
-}
+export type LastTile = Omit<Tile, 'metatile'>;
 
 export interface TileRequestQueuePayload<A = BoundingBox | Feature> extends BaseQueuePayload {
   items: TileRequestQueuePayloadItem<A>[];

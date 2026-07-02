@@ -143,7 +143,7 @@ export class TilesManager {
       ...this.baseQueueConfig,
       singletonKey: key,
       singletonSeconds: 60,
-      priority: priority ?? 0,
+      priority: priority,
     });
 
     if (res === null) {
@@ -262,7 +262,7 @@ export class TilesManager {
               break outer;
             }
 
-            tileArr.push({ ...this.baseQueueConfig, priority: priority ?? 0, data: { ...tile, parent: id, state, force: isTileForced } });
+            tileArr.push({ ...this.baseQueueConfig, priority: priority, data: { ...tile, parent: id, state, force: isTileForced } });
             lastCollectedTile = { z: zoom, x, y };
             inserted++;
           }
@@ -292,14 +292,14 @@ export class TilesManager {
       await this.pgboss.send(
         this.requestQueueName,
         { ...jobData, batchIndex: batchIndex + 1, itemIndex, lastTile: lastCollectedTile, totalBatches },
-        { ...this.baseQueueConfig, priority: priority ?? 0 }
+        { ...this.baseQueueConfig, priority: priority }
       );
       this.logger.info({ msg: 'scheduled next batch', jobId: id, itemIndex, nextBatch: batchIndex + 1, totalBatches, lastTile: lastCollectedTile });
     } else if (itemIndex + 1 < items.length) {
       await this.pgboss.send(
         this.requestQueueName,
         { ...jobData, batchIndex: 0, itemIndex: itemIndex + 1, lastTile: undefined, totalBatches },
-        { ...this.baseQueueConfig, priority: priority ?? 0 }
+        { ...this.baseQueueConfig, priority: priority }
       );
       this.logger.info({ msg: 'scheduled next bbox', jobId: id, nextItemIndex: itemIndex + 1 });
     }
