@@ -3,14 +3,13 @@ import { type Logger } from '@map-colonies/js-logger';
 import { BoundingBox, boundingBoxToTiles as boundingBoxToTilesGenerator, Tile, tileToBoundingBox, lonLatZoomToTile } from '@map-colonies/tile-calc';
 import { API_STATE } from '@map-colonies/detiler-common';
 import { type PgBoss, JobInsert, JobWithMetadata } from 'pg-boss';
-import { Pool } from 'pg';
 import { inject, injectable } from 'tsyringe';
 import client from 'prom-client';
 import booleanIntersects from '@turf/boolean-intersects';
 import { Feature } from 'geojson';
 import { type ConfigType } from '@src/common/config';
 import { snakeCase } from 'snake-case';
-import { DB_POOL_PROVIDER, SERVICES } from '../../common/constants';
+import { SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
@@ -34,14 +33,11 @@ export class TilesManager {
   private readonly shouldForceApiTiles: boolean;
   private readonly shouldForceExpiredTiles: boolean;
   private readonly baseQueueConfig: JobInsertConfig;
-  private readonly pgBossSchema: string;
-  private readonly completedJobsCleanupThreshold: number;
 
   public constructor(
     @inject(PGBOSS_PROVIDER) private readonly pgboss: PgBoss,
     @inject(SERVICES.CONFIG) config: ConfigType,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(DB_POOL_PROVIDER) private readonly cleanupPool: Pool,
     @inject(SERVICES.METRICS) registry?: client.Registry
   ) {
     const appConfig = config.get('app');
@@ -51,11 +47,9 @@ export class TilesManager {
     this.metatile = appConfig.metatileSize;
     this.shouldForceApiTiles = appConfig.force.api;
     this.shouldForceExpiredTiles = appConfig.force.expiredTiles;
-    this.completedJobsCleanupThreshold = appConfig.completedJobsCleanupThreshold;
 
     const { retryDelaySeconds, ...queueConfig } = config.get('queue');
     this.baseQueueConfig = { retryDelay: retryDelaySeconds, ...queueConfig };
-    this.pgBossSchema = config.get('db').schema;
 
     this.logger.info({
       msg: 'tiles manager initialized',
@@ -141,7 +135,6 @@ export class TilesManager {
     };
 
     const key = hashValue(payload);
-    const singletonSeconds = this.baseQueueConfig.expireInSeconds;
 
     this.logger.debug({ msg: 'pushing payload to queue', queueName: this.requestQueueName, key, payload, itemCount: payload.items.length });
 
@@ -149,7 +142,6 @@ export class TilesManager {
     const res = await this.pgboss.send(this.requestQueueName, payload, {
       ...this.baseQueueConfig,
       singletonKey: key,
-      singletonSeconds,
       priority: priority ?? 0,
     });
 
@@ -363,22 +355,5 @@ export class TilesManager {
       return sum + itemTiles;
     }, 0);
     return Math.ceil(totalTiles / this.batchSize);
-  }
-
-  private async cleanupCompletedTileJobs(): Promise<void> {
-    const countResult = await this.cleanupPool.query<{ count: number }>(
-      `SELECT count(*)::int AS count FROM ${this.pgBossSchema}.job WHERE name = $1 AND state = 'completed'`,
-      [this.tilesQueueName]
-    );
-    const completedCount = countResult.rows[0]?.count ?? 0;
-
-    this.logger.debug({ msg: 'completed tile jobs count', completedCount, threshold: this.completedJobsCleanupThreshold });
-
-    if (completedCount >= this.completedJobsCleanupThreshold) {
-      const deleteResult = await this.cleanupPool.query(`DELETE FROM ${this.pgBossSchema}.job WHERE name = $1 AND state = 'completed'`, [
-        this.tilesQueueName,
-      ]);
-      this.logger.info({ msg: 'deleted completed tile jobs', deletedCount: deleteResult.rowCount });
-    }
   }
 }

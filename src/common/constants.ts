@@ -17,7 +17,6 @@ export const SERVICES = {
 } satisfies Record<string, symbol>;
 /* eslint-enable @typescript-eslint/naming-convention */
 
-export const DB_POOL_PROVIDER = Symbol('DbPool');
 export const HEALTHCHECK = Symbol('healthcheck');
 export const ON_SIGNAL = Symbol('onSignal');
 
