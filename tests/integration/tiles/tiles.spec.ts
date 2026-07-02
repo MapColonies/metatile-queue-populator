@@ -32,6 +32,16 @@ async function waitForJobToBeResolved(boss: PgBoss, queueName: string, jobId: st
   return null;
 }
 
+async function waitForTilesInQueue(boss: PgBoss, queueName: string, minCount: number): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+  for await (const _unused of setIntervalPromise(10)) {
+    const { queuedCount } = await boss.getQueueStats(queueName);
+    if (queuedCount >= minCount) {
+      return;
+    }
+  }
+}
+
 describe('tiles', function () {
   let config: ConfigType;
 
@@ -529,9 +539,9 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      const jobId = await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
+      await waitForTilesInQueue(boss, 'tiles-test-requests', 14);
 
       provider.stopQueue();
 
@@ -581,9 +591,9 @@ describe('tiles', function () {
         force: true,
       };
 
-      const jobId = await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
+      await waitForTilesInQueue(boss, 'tiles-test-requests', 14);
 
       provider.stopQueue();
 
@@ -632,9 +642,9 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      const jobId = await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
+      await waitForTilesInQueue(boss, 'tiles-test-requests', 14);
 
       provider.stopQueue();
 
@@ -688,9 +698,9 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      const jobId = await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
+      await waitForTilesInQueue(boss, 'tiles-test-requests', 15);
 
       provider.stopQueue();
 
@@ -851,8 +861,6 @@ describe('tiles', function () {
 
       await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId1 as string);
 
-      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 5000 });
-
       const bboxRequest = {
         items: [
           {
@@ -871,6 +879,8 @@ describe('tiles', function () {
       provider.stopQueue();
 
       await expect(consumeAndPopulatePromise).resolves.not.toThrow();
+
+      const geojsonResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 5000 });
 
       const bboxResult = await boss.fetch<Tile>('tiles-test-requests', { batchSize: 1000 });
 
@@ -1006,9 +1016,9 @@ describe('tiles', function () {
         source: 'api',
       };
 
-      const jobId = await boss.send('tiles-requests-test-requests', request);
+      await boss.send('tiles-requests-test-requests', request);
 
-      await waitForJobToBeResolved(boss, 'tiles-requests-test-requests', jobId as string);
+      await waitForTilesInQueue(boss, 'tiles-test-requests', 14);
 
       provider.stopQueue();
 

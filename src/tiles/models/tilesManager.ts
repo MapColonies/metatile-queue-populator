@@ -142,6 +142,7 @@ export class TilesManager {
     const res = await this.pgboss.send(this.requestQueueName, payload, {
       ...this.baseQueueConfig,
       singletonKey: key,
+      singletonSeconds: 60,
       priority: priority ?? 0,
     });
 

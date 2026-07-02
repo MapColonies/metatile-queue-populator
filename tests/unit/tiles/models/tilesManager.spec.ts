@@ -78,6 +78,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
@@ -102,6 +103,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
@@ -132,6 +134,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
@@ -169,6 +172,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
@@ -206,6 +210,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
@@ -266,6 +271,7 @@ describe('tilesManager', () => {
       expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
+        singletonSeconds: 60,
         priority: 0,
       });
     });
