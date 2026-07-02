@@ -123,5 +123,64 @@ describe('PgBossJobQueueProvider', () => {
       expect(pgbossMock.complete).not.toHaveBeenCalled();
       expect(pgbossMock.fail).toHaveBeenCalledWith('tiles-requests-queue-name', id, fetchError);
     });
+
+    it('should skip fail() when pg-boss stops mid-job execution', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce([{ id, data: {} }]);
+
+      provider.startQueue();
+      const stoppedCallback = pgbossMock.on.mock.calls.find(([event]: [string, unknown]) => event === 'stopped')?.[1] as () => void;
+
+      const fnMock = jest.fn().mockImplementation(async () => {
+        stoppedCallback(); // fire stopped event mid-job, before throw
+        throw new Error('job error');
+      });
+
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(500);
+
+      await expect(queuePromise).resolves.not.toThrow();
+      expect(pgbossMock.fail).not.toHaveBeenCalled();
+    });
+
+    it('should swallow error when pgBoss.fail() itself throws', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce([{ id, data: {} }]).mockResolvedValue([]);
+      pgbossMock.fail.mockRejectedValue(new Error('fail error'));
+
+      const fnMock = jest.fn().mockRejectedValue(new Error('job error'));
+
+      provider.startQueue();
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(500);
+      provider.stopQueue();
+
+      await expect(queuePromise).resolves.not.toThrow();
+      expect(pgbossMock.fail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should exit consumer loop gracefully when fetch throws during pg-boss shutdown', async () => {
+      provider.startQueue();
+      const stoppedCallback = pgbossMock.on.mock.calls.find(([event]: [string, unknown]) => event === 'stopped')?.[1] as () => void;
+
+      pgbossMock.fetch.mockImplementation(async () => {
+        stoppedCallback(); // stopped fires just before fetch throws
+        throw new Error('pg-boss stopped');
+      });
+
+      const queuePromise = provider.consumeQueue(jest.fn());
+      await setTimeoutPromise(200);
+
+      await expect(queuePromise).resolves.not.toThrow();
+    });
+
+    it('should propagate fetch error when pg-boss is still running', async () => {
+      pgbossMock.fetch.mockRejectedValue(new Error('unexpected fetch error'));
+
+      provider.startQueue();
+      const queuePromise = provider.consumeQueue(jest.fn());
+
+      await expect(queuePromise).rejects.toThrow('unexpected fetch error');
+    });
   });
 });

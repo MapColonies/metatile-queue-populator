@@ -7,7 +7,7 @@ import { bbox } from '@turf/turf';
 import { FeatureCollection } from 'geojson';
 import { API_STATE } from '@map-colonies/detiler-common';
 import { ConfigType, getConfig, initConfig } from '@src/common/config';
-import { RequestAlreadyInQueueError } from '../../../../src/tiles/models/errors';
+import { RequestAlreadyInQueueError, RequestValidationError } from '../../../../src/tiles/models/errors';
 import { TileRequestQueuePayload, TilesByAreaRequest } from '../../../../src/tiles/models/tiles';
 import { TilesManager } from '../../../../src/tiles/models/tilesManager';
 import { BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../../helpers/samples';
@@ -291,6 +291,14 @@ describe('tilesManager', () => {
     });
   });
 
+  describe('#errors', () => {
+    it('RequestValidationError should have BAD_REQUEST status', () => {
+      const error = new RequestValidationError('test message');
+      expect(error.status).toBe(400);
+      expect(error.message).toBe('test message');
+    });
+  });
+
   describe('#isAlive', () => {
     it('should resolve without error', async function () {
       const getQueueStatsMock = jest.fn().mockResolvedValue({ totalCount: 0 });
@@ -308,6 +316,18 @@ describe('tilesManager', () => {
       const isAlivePromise = tilesManager.isAlive();
 
       await expect(isAlivePromise).rejects.toThrow('test');
+    });
+  });
+
+  describe('#metrics', () => {
+    it('should call getQueueStats for each queue when prometheus scrapes metrics', async function () {
+      const getQueueStatsMock = jest.fn().mockResolvedValue({ totalCount: 5 });
+      const registry = new client.Registry();
+      new TilesManager({ getQueueStats: getQueueStatsMock } as unknown as PgBoss, configMock, logger, registry);
+
+      await registry.metrics();
+
+      expect(getQueueStatsMock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -823,6 +843,75 @@ describe('tilesManager', () => {
         const bboxTileCount = (insertMock.mock.calls[0][1] as JobInsert[]).length;
 
         expect(geojsonTileCount).toBeLessThan(bboxTileCount);
+      });
+
+      it('should resume mid-row when lastTile.x < lowerRight.x', async function () {
+        const insertMock = jest.fn().mockResolvedValue(['ok']);
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [{ area: BBOX2, minZoom: 18, maxZoom: 18 }],
+            source: 'api',
+            batchIndex: 1,
+            lastTile: { z: 18, x: 39176, y: 10598 },
+          },
+        } as unknown as JobWithMetadata<TileRequestQueuePayload>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+        const args = insertMock.mock.calls[0][1] as JobInsert[];
+        expect(args).toHaveLength(5);
+        expect(args.map((job) => job.data)).toContainSameTiles([
+          { x: 39177, y: 10598, z: 18, metatile: 8 },
+          { x: 39176, y: 10599, z: 18, metatile: 8 },
+          { x: 39177, y: 10599, z: 18, metatile: 8 },
+          { x: 39176, y: 10600, z: 18, metatile: 8 },
+          { x: 39177, y: 10600, z: 18, metatile: 8 },
+        ]);
+      });
+
+      it('should resume at next row when lastTile is at row end (lastTile.x === lowerRight.x)', async function () {
+        const insertMock = jest.fn().mockResolvedValue(['ok']);
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [{ area: BBOX2, minZoom: 18, maxZoom: 18 }],
+            source: 'api',
+            batchIndex: 1,
+            lastTile: { z: 18, x: 39177, y: 10598 },
+          },
+        } as unknown as JobWithMetadata<TileRequestQueuePayload>);
+
+        await expect(promise).resolves.not.toThrow();
+        expect(insertMock).toHaveBeenCalledTimes(1);
+        const args = insertMock.mock.calls[0][1] as JobInsert[];
+        expect(args).toHaveLength(4);
+        expect(args.map((job) => job.data)).toContainSameTiles([
+          { x: 39176, y: 10599, z: 18, metatile: 8 },
+          { x: 39177, y: 10599, z: 18, metatile: 8 },
+          { x: 39176, y: 10600, z: 18, metatile: 8 },
+          { x: 39177, y: 10600, z: 18, metatile: 8 },
+        ]);
+      });
+
+      it('should advance to next zoom when lastTile is at zoom end (lastTile === lowerRight)', async function () {
+        const insertMock = jest.fn().mockResolvedValue(['ok']);
+        const tilesManager = new TilesManager({ insert: insertMock } as unknown as PgBoss, configMock, logger, new client.Registry());
+
+        const promise = tilesManager.handleTileRequest({
+          data: {
+            items: [{ area: BBOX2, minZoom: 18, maxZoom: 18 }],
+            source: 'api',
+            batchIndex: 1,
+            lastTile: { z: 18, x: 39177, y: 10600 },
+          },
+        } as unknown as JobWithMetadata<TileRequestQueuePayload>);
+
+        await expect(promise).resolves.not.toThrow();
+        // All tiles at zoom 18 were already covered by lastTile; nothing to insert
+        expect(insertMock).not.toHaveBeenCalled();
       });
     });
 
