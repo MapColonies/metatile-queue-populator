@@ -196,7 +196,7 @@ export class TilesManager {
     this.requestsHandledCounter?.inc({ source: job.data.source, retrycount: job.retryCount });
   }
 
-  private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload>): Promise<void> {
+  private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload<BoundingBox | Feature>>): Promise<void> {
     const {
       data: { items, state, force, batchIndex = 0, itemIndex = 0, priority },
       id,
@@ -284,7 +284,7 @@ export class TilesManager {
     if (tileArr.length > 0) {
       await this.populateTilesQueue(tileArr, 'api');
     }
-    const jobData = job.data as TileRequestQueuePayload<BoundingBox>;
+    const jobData = job.data;
 
     if (inserted >= this.batchSize) {
       await this.pgboss.send(
