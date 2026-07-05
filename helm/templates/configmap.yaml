@@ -24,6 +24,8 @@ data:
   DB_HOST: {{ .host }}
   DB_NAME: {{ .database }}
   DB_SCHEMA: {{ .schema }}
+  DB_CREATE_SCHEMA: {{ .createSchema | quote }}
+  DB_RUN_MIGRATE: {{ .migrate | quote }}
   DB_PORT: {{ .port | quote }}
   {{- end -}}
   {{- with .Values.queueConfig }}
@@ -31,8 +33,8 @@ data:
   QUEUE_JOBS_RETRY_BACKOFF: {{ .retryBackoff | quote }}
   QUEUE_JOBS_RETRY_LIMIT: {{ .retryLimit | quote }}
   QUEUE_JOBS_RETRY_DELAY_SECONDS: {{ .retryDelaySeconds | quote }}
-  QUEUE_JOBS_RETENTION_HOURS: {{ .retentionHours | quote }}
-  {{- end -}}
+  QUEUE_JOBS_RETENTION_SECONDS: {{ .retentionSeconds | quote }}
+  {{- end }}
   FORCE_API_TILES: {{ .Values.env.force.api | quote }}
   FORCE_EXPIRED_TILES: {{ .Values.env.force.expiredTiles | quote }}
   {{- if .Values.dbConfig.sslAuth.enabled }}
@@ -44,6 +46,7 @@ data:
   {{- else }}
   DB_ENABLE_SSL_AUTH: "false"
   {{- end }}
+  APP_COMPLETED_JOBS_CLEANUP_THRESHOLD_SIZE_OF_JOBS: {{ (.Values.app).cleanupThreshold | default 50000 | quote }}
   APP_PROJECT_NAME: {{ .Values.env.projectName | quote }}
   APP_ENABLE_REQUEST_QUEUE_HANDLING: {{ .Values.env.enableRequestQueueHandling | quote }}
   APP_REQUEST_QUEUE_CHECK_INTERVAL_SEC: {{ .Values.env.requestQueueCheckIntervalSec | quote }}

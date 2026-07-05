@@ -33,9 +33,9 @@ env:
   enableRequestQueueHandling: true
   requestQueueCheckIntervalSec: 60
   consumeCondition:
-    enabled: false
-    # conditionCheckIntervalSec: 10
-    # tilesQueueSizeLimit: 666
+    enabled: true
+    conditionCheckIntervalSec: 30
+    tilesQueueSizeLimit: 400000
   force:
     api: false
     expiredTiles: false
@@ -56,12 +56,14 @@ env:
     enabled: false
     url: http://localhost:55681/v1/metrics
 
+app:
+  cleanupThreshold: 50000
 queueConfig:
-  expireInSeconds: 600
+  expireInSeconds: 300
   retryBackoff: true
   retryLimit: 3
   retryDelaySeconds: 60
-  retentionHours: 87660
+  retentionSeconds: 315576000
 
 dbConfig:
   host: localhost
@@ -69,6 +71,8 @@ dbConfig:
   password: postgres
   database: metatile-queue-populator
   schema: pgboss
+  createSchema: true
+  migrate: true
   port: 5432
   sslAuth:
     enabled: false

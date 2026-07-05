@@ -1,5 +1,5 @@
 import { Logger } from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import { type PgBoss } from 'pg-boss';
 import { FactoryFunction } from 'tsyringe';
 import { JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
 import { PgBossJobQueueProvider } from './tiles/jobQueueProvider/pgBossJobQueue';
@@ -20,10 +20,18 @@ export const consumeAndPopulateFactory: FactoryFunction<() => Promise<void>> = (
   let conditionFn: ConditionFn | undefined = undefined;
 
   if (appConfig.consumeCondition.enabled) {
+    const { tilesQueueSizeLimit } = appConfig.consumeCondition;
+
     conditionFn = async (): Promise<boolean> => {
-      const currentSize = await pgBoss.getQueueSize(tilesManager.tilesQueueName, { before: 'completed' });
-      logger.debug({ msg: 'condition function', queueName: tilesManager.tilesQueueName, size: currentSize });
-      return currentSize <= (appConfig.consumeCondition.tilesQueueSizeLimit ?? Number.NEGATIVE_INFINITY);
+      const { queuedCount } = await pgBoss.getQueueStats(tilesManager.tilesQueueName);
+      const shouldConsume = queuedCount < tilesQueueSizeLimit;
+
+      if (!shouldConsume) {
+        logger.info({ msg: 'tiles queue size limit reached, skipping consumption', queuedCount, tilesQueueSizeLimit });
+      }
+
+      logger.debug({ msg: 'consume condition check', queueName: tilesManager.tilesQueueName, queuedCount, tilesQueueSizeLimit, shouldConsume });
+      return shouldConsume;
     };
   }
 

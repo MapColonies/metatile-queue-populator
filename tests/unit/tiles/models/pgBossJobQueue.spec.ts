@@ -1,7 +1,7 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
-import { ConfigType } from '@src/common/config';
+import { type PgBoss } from 'pg-boss';
+import { ConfigType, initConfig } from '@src/common/config';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
 
 describe('PgBossJobQueueProvider', () => {
@@ -11,18 +11,19 @@ describe('PgBossJobQueueProvider', () => {
     on: jest.Mock;
     start: jest.Mock;
     stop: jest.Mock;
-    getQueueSize: jest.Mock;
+    getQueueStats: jest.Mock;
     complete: jest.Mock;
     fail: jest.Mock;
     fetch: jest.Mock;
   };
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    await initConfig(true);
     pgbossMock = {
       on: jest.fn(),
       start: jest.fn(),
       stop: jest.fn(),
-      getQueueSize: jest.fn(),
+      getQueueStats: jest.fn(),
       complete: jest.fn(),
       fail: jest.fn(),
       fetch: jest.fn(),
@@ -68,7 +69,7 @@ describe('PgBossJobQueueProvider', () => {
       const job2 = [{ id: 'id2', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue([]);
       provider.startQueue();
       const queuePromise = provider.consumeQueue(fnMock);
       await setTimeoutPromise(1000);
@@ -87,7 +88,7 @@ describe('PgBossJobQueueProvider', () => {
       const job3 = [{ id: 'id3', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce(null);
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce([]);
 
       const conditionFnMock = jest.fn();
       conditionFnMock.mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValueOnce(false);
@@ -120,7 +121,66 @@ describe('PgBossJobQueueProvider', () => {
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
-      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
+      expect(pgbossMock.fail).toHaveBeenCalledWith('tiles-requests-queue-name', id, fetchError);
+    });
+
+    it('should skip fail() when pg-boss stops mid-job execution', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce([{ id, data: {} }]);
+
+      provider.startQueue();
+      const stoppedCallback = pgbossMock.on.mock.calls.find(([event]: [string, unknown]) => event === 'stopped')?.[1] as () => void;
+
+      const fnMock = jest.fn().mockImplementation(async () => {
+        stoppedCallback(); // fire stopped event mid-job, before throw
+        throw new Error('job error');
+      });
+
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(500);
+
+      await expect(queuePromise).resolves.not.toThrow();
+      expect(pgbossMock.fail).not.toHaveBeenCalled();
+    });
+
+    it('should swallow error when pgBoss.fail() itself throws', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce([{ id, data: {} }]).mockResolvedValue([]);
+      pgbossMock.fail.mockRejectedValue(new Error('fail error'));
+
+      const fnMock = jest.fn().mockRejectedValue(new Error('job error'));
+
+      provider.startQueue();
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(500);
+      provider.stopQueue();
+
+      await expect(queuePromise).resolves.not.toThrow();
+      expect(pgbossMock.fail).toHaveBeenCalledTimes(1);
+    });
+
+    it('should exit consumer loop gracefully when fetch throws during pg-boss shutdown', async () => {
+      provider.startQueue();
+      const stoppedCallback = pgbossMock.on.mock.calls.find(([event]: [string, unknown]) => event === 'stopped')?.[1] as () => void;
+
+      pgbossMock.fetch.mockImplementation(async () => {
+        stoppedCallback(); // stopped fires just before fetch throws
+        throw new Error('pg-boss stopped');
+      });
+
+      const queuePromise = provider.consumeQueue(jest.fn());
+      await setTimeoutPromise(200);
+
+      await expect(queuePromise).resolves.not.toThrow();
+    });
+
+    it('should propagate fetch error when pg-boss is still running', async () => {
+      pgbossMock.fetch.mockRejectedValue(new Error('unexpected fetch error'));
+
+      provider.startQueue();
+      const queuePromise = provider.consumeQueue(jest.fn());
+
+      await expect(queuePromise).rejects.toThrow('unexpected fetch error');
     });
   });
 });

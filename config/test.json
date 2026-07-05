@@ -11,5 +11,9 @@
   },
   "app": {
     "requestQueueCheckIntervalSec": 1
+  },
+  "queue": {
+    "retryDelay": 1,
+    "expireInSeconds": 60
   }
 }
