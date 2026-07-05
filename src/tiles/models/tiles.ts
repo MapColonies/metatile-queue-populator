@@ -26,6 +26,8 @@ export interface BaseQueuePayload {
 
 export type LastTile = Omit<Tile, 'metatile'>;
 
+export type StartPosition = Pick<LastTile, 'z'> & Partial<Omit<LastTile, 'z'>>;
+
 export interface TileRequestQueuePayload<A = BoundingBox | Feature> extends BaseQueuePayload {
   items: TileRequestQueuePayloadItem<A>[];
   source: Source;

@@ -1,8 +1,12 @@
 import { type ConfigInstance, config } from '@map-colonies/config';
 import { vectorMetatileQueuePopulatorFullV2, type vectorMetatileQueuePopulatorFullV2Type } from '@map-colonies/schemas';
 
+// Central alias for the config schema - change the schema version here and it propagates to the entire application
+const configSchema = vectorMetatileQueuePopulatorFullV2;
+type ConfigSchemaType = vectorMetatileQueuePopulatorFullV2Type;
+
 // Choose here the type of the config instance and import this type from the entire application
-type ConfigType = ConfigInstance<vectorMetatileQueuePopulatorFullV2Type>;
+type ConfigType = ConfigInstance<ConfigSchemaType>;
 
 let configInstance: ConfigType | undefined;
 
@@ -13,7 +17,7 @@ let configInstance: ConfigType | undefined;
  */
 async function initConfig(offlineMode?: boolean): Promise<void> {
   configInstance = await config({
-    schema: vectorMetatileQueuePopulatorFullV2,
+    schema: configSchema,
     offlineMode,
   });
 }
@@ -25,5 +29,5 @@ function getConfig(): ConfigType {
   return configInstance;
 }
 
-export { getConfig, initConfig };
-export type { ConfigType };
+export { getConfig, initConfig, configSchema };
+export type { ConfigType, ConfigSchemaType };

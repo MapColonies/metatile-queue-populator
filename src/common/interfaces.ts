@@ -1,6 +1,6 @@
-import { type vectorMetatileQueuePopulatorFullV2Type } from '@map-colonies/schemas';
+import { type ConfigSchemaType } from './config';
 
-export interface JobInsertConfig extends Partial<Omit<vectorMetatileQueuePopulatorFullV2Type['queue'], 'retryDelaySeconds'>> {
+export interface JobInsertConfig extends Partial<Omit<ConfigSchemaType['queue'], 'retryDelaySeconds'>> {
   retryDelay?: number;
   retentionSeconds?: number;
 }

@@ -13,7 +13,7 @@ import { SERVICES } from '../../common/constants';
 import { JobInsertConfig } from '../../common/interfaces';
 import { hashValue } from '../../common/util';
 import { PGBOSS_PROVIDER } from '../jobQueueProvider/pgbossFactory';
-import { LastTile, Source, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
+import { LastTile, Source, StartPosition, TileQueuePayload, TileRequestQueuePayload, TilesByAreaRequest } from './tiles';
 import { RequestAlreadyInQueueError } from './errors';
 import { TILE_REQUEST_QUEUE_NAME_PREFIX, TILES_QUEUE_NAME_PREFIX } from './constants';
 import { areaToBoundingBox, boundingBoxToPolygon, stringifyTile } from './util';
@@ -141,7 +141,7 @@ export class TilesManager {
       ...this.baseQueueConfig,
       singletonKey: key,
       singletonSeconds: 60,
-      priority: priority,
+      priority,
     });
 
     if (res === null) {
@@ -198,108 +198,120 @@ export class TilesManager {
 
   private async handleApiTileRequest(job: JobWithMetadata<TileRequestQueuePayload<BoundingBox | Feature>>): Promise<void> {
     const {
-      data: { items, state, force, batchIndex = 0, itemIndex = 0, priority },
+      data: { items, state, force, batchIndex = 0, itemIndex = 0, priority = 0, lastTile },
       id,
     } = job;
-    const lastTile = job.data.lastTile;
     const totalBatches = batchIndex === 0 && itemIndex === 0 ? this.computeTotalBatches(items) : job.data.totalBatches;
     const isTileForced = this.shouldForceApiTiles ? this.shouldForceApiTiles : force;
-    let inserted = 0;
-    let lastCollectedTile: LastTile | undefined;
-    const tileArr: JobInsert<TileQueuePayload>[] = [];
 
     this.logger.debug({ msg: 'handling api tile request batch', jobId: id, itemIndex, batchIndex, lastTile });
 
-    for (const { area, minZoom, maxZoom } of items.slice(itemIndex, itemIndex + 1)) {
-      const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
-
-      let startZoom = minZoom;
-      let startY: number | undefined;
-      let startX: number | undefined;
-
-      if (lastTile) {
-        const lowerRight = lonLatZoomToTile({ lon: itemBBox.east, lat: itemBBox.south }, lastTile.z, this.metatile);
-
-        if (lastTile.x < lowerRight.x) {
-          startZoom = lastTile.z;
-          startY = lastTile.y;
-          startX = lastTile.x + 1;
-        } else if (lastTile.y < lowerRight.y) {
-          startZoom = lastTile.z;
-          startY = lastTile.y + 1;
-          startX = undefined;
-        } else {
-          startZoom = lastTile.z + 1;
-          startY = undefined;
-          startX = undefined;
-        }
-      }
-
-      this.logger.info({ msg: 'tile generation start', jobId: id, bbox: itemBBox, minZoom, maxZoom, startZoom, startX, startY, fromGeojson });
-
-      outer: for (let zoom = startZoom; zoom <= maxZoom; zoom++) {
-        const upperLeft = lonLatZoomToTile({ lon: itemBBox.west, lat: itemBBox.north }, zoom, this.metatile);
-        const lowerRight = lonLatZoomToTile({ lon: itemBBox.east, lat: itemBBox.south }, zoom, this.metatile);
-
-        const startYAtZoom = zoom === startZoom && startY !== undefined ? startY : upperLeft.y;
-
-        for (let y = startYAtZoom; y <= lowerRight.y; y++) {
-          const startXAtZoom = zoom === startZoom && y === startY && startX !== undefined ? startX : upperLeft.x;
-
-          for (let x = startXAtZoom; x <= lowerRight.x; x++) {
-            const tile: Tile = { x, y, z: zoom, metatile: this.metatile };
-
-            if (fromGeojson) {
-              const tileBbox = tileToBoundingBox(tile);
-              if (!booleanIntersects(boundingBoxToPolygon(tileBbox), area as Feature)) {
-                continue;
-              }
-            }
-
-            if (inserted >= this.batchSize) {
-              break outer;
-            }
-
-            tileArr.push({ ...this.baseQueueConfig, priority: priority, data: { ...tile, parent: id, state, force: isTileForced } });
-            lastCollectedTile = { z: zoom, x, y };
-            inserted++;
-          }
-        }
-      }
-
-      if (tileArr.length > 0) {
-        const first = tileArr[0].data;
-        const last = tileArr[tileArr.length - 1].data;
-        this.logger.info({
-          msg: 'batch tiles range',
-          jobId: id,
-          batchIndex,
-          inserted,
-          firstTile: { x: first?.x, y: first?.y, z: first?.z },
-          lastTile: { x: last?.x, y: last?.y, z: last?.z },
-        });
-      }
+    if (itemIndex >= items.length) {
+      this.logger.warn({ msg: 'item index is out of range, nothing to process', jobId: id, itemIndex, itemCount: items.length });
+      return;
     }
 
-    if (tileArr.length > 0) {
+    const { area, minZoom, maxZoom } = items[itemIndex];
+    const { bbox: itemBBox, fromGeojson } = areaToBoundingBox(area);
+    const start: StartPosition = lastTile ? this.resolveStartPosition(itemBBox, lastTile) : { z: minZoom };
+
+    this.logger.info({
+      msg: 'tile generation start',
+      jobId: id,
+      bbox: itemBBox,
+      minZoom,
+      maxZoom,
+      startZoom: start.z,
+      startX: start.x,
+      startY: start.y,
+      fromGeojson,
+    });
+
+    const tileArr: JobInsert<TileQueuePayload>[] = [];
+    let lastCollectedTile: LastTile | undefined;
+
+    for (const tile of this.generateItemTiles(area, itemBBox, fromGeojson, start, maxZoom)) {
+      if (tileArr.length >= this.batchSize) {
+        break;
+      }
+      tileArr.push({ ...this.baseQueueConfig, priority, data: { ...tile, parent: id, state, force: isTileForced } });
+      lastCollectedTile = { z: tile.z, x: tile.x, y: tile.y };
+    }
+
+    const inserted = tileArr.length;
+
+    if (inserted > 0) {
+      const first = tileArr[0].data;
+      const last = tileArr[inserted - 1].data;
+      this.logger.info({
+        msg: 'batch tiles range',
+        jobId: id,
+        batchIndex,
+        inserted,
+        firstTile: { x: first?.x, y: first?.y, z: first?.z },
+        lastTile: { x: last?.x, y: last?.y, z: last?.z },
+      });
       await this.populateTilesQueue(tileArr, 'api');
     }
-    const jobData = job.data;
 
     if (inserted >= this.batchSize) {
       await this.pgboss.send(
         this.requestQueueName,
-        { ...jobData, batchIndex: batchIndex + 1, itemIndex, lastTile: lastCollectedTile, totalBatches },
-        { ...this.baseQueueConfig, priority: priority }
+        { ...job.data, batchIndex: batchIndex + 1, itemIndex, lastTile: lastCollectedTile, totalBatches },
+        { ...this.baseQueueConfig, priority }
       );
       this.logger.info({ msg: 'scheduled next batch', jobId: id, itemIndex, nextBatch: batchIndex + 1, totalBatches, lastTile: lastCollectedTile });
     } else if (itemIndex + 1 < items.length) {
       await this.pgboss.send(
         this.requestQueueName,
-        { ...jobData, batchIndex: 0, itemIndex: itemIndex + 1, lastTile: undefined, totalBatches },
-        { ...this.baseQueueConfig, priority: priority }
+        { ...job.data, batchIndex: 0, itemIndex: itemIndex + 1, lastTile: undefined, totalBatches },
+        { ...this.baseQueueConfig, priority }
       );
       this.logger.info({ msg: 'scheduled next bbox', jobId: id, nextItemIndex: itemIndex + 1 });
+    }
+  }
+
+  private resolveStartPosition(bbox: BoundingBox, lastTile: LastTile): StartPosition {
+    const lowerRight = lonLatZoomToTile({ lon: bbox.east, lat: bbox.south }, lastTile.z, this.metatile);
+
+    if (lastTile.x < lowerRight.x) {
+      return { z: lastTile.z, y: lastTile.y, x: lastTile.x + 1 };
+    }
+    if (lastTile.y < lowerRight.y) {
+      return { z: lastTile.z, y: lastTile.y + 1 };
+    }
+    return { z: lastTile.z + 1 };
+  }
+
+  private *generateItemTiles(
+    area: BoundingBox | Feature,
+    bbox: BoundingBox,
+    fromGeojson: boolean,
+    start: StartPosition,
+    maxZoom: number
+  ): Generator<Tile> {
+    for (let zoom = start.z; zoom <= maxZoom; zoom++) {
+      const upperLeft = lonLatZoomToTile({ lon: bbox.west, lat: bbox.north }, zoom, this.metatile);
+      const lowerRight = lonLatZoomToTile({ lon: bbox.east, lat: bbox.south }, zoom, this.metatile);
+
+      const startYAtZoom = zoom === start.z && start.y !== undefined ? start.y : upperLeft.y;
+
+      for (let y = startYAtZoom; y <= lowerRight.y; y++) {
+        const startXAtZoom = zoom === start.z && y === start.y && start.x !== undefined ? start.x : upperLeft.x;
+
+        for (let x = startXAtZoom; x <= lowerRight.x; x++) {
+          const tile: Tile = { x, y, z: zoom, metatile: this.metatile };
+
+          if (fromGeojson) {
+            const tileBbox = tileToBoundingBox(tile);
+            if (!booleanIntersects(boundingBoxToPolygon(tileBbox), area as Feature)) {
+              continue;
+            }
+          }
+
+          yield tile;
+        }
+      }
     }
   }
 
