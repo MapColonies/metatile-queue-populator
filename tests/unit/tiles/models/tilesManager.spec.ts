@@ -16,6 +16,7 @@ import { hashValue } from '../../../../src/common/util';
 
 const logger = jsLogger({ enabled: false });
 const queueConfig = { retryDelay: 1, expireInSeconds: 60 };
+const TILES_QUEUE_NAME = 'tiles-requests-test';
 
 describe('tilesManager', () => {
   let config: ConfigType;
@@ -75,7 +76,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
@@ -100,7 +101,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
@@ -131,7 +132,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
@@ -169,7 +170,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
@@ -207,7 +208,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request, true);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
@@ -268,7 +269,7 @@ describe('tilesManager', () => {
       const resource = tilesManager.addArealTilesRequestToQueue(request);
 
       await expect(resource).resolves.not.toThrow();
-      expect(sendMock).toHaveBeenCalledWith('tiles-requests-test', expectedPayload, {
+      expect(sendMock).toHaveBeenCalledWith(TILES_QUEUE_NAME, expectedPayload, {
         ...queueConfig,
         singletonKey: hashValue(expectedPayload),
         singletonSeconds: 60,
