@@ -795,6 +795,15 @@ describe('tiles', function () {
 
       const geojsonResult = await boss.fetch<Tile>(TILES_QUEUE_NAME, { batchSize: 1000 });
 
+      expect(geojsonResult).not.toBeNull();
+
+      await boss.complete(
+        TILES_QUEUE_NAME,
+        geojsonResult!.map((job) => job.id)
+      );
+
+      await boss.deleteAllJobs();
+
       const bboxRequest = {
         items: [
           {
