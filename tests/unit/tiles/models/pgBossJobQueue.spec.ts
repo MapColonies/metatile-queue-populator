@@ -1,5 +1,5 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import jsLogger from '@map-colonies/js-logger';
+import { jsLogger } from '@map-colonies/js-logger';
 import { type PgBoss } from 'pg-boss';
 import { ConfigType, initConfig } from '@src/common/config';
 import { PgBossJobQueueProvider } from '../../../../src/tiles/jobQueueProvider/pgBossJobQueue';
@@ -49,8 +49,8 @@ describe('PgBossJobQueueProvider', () => {
     };
   });
 
-  beforeEach(function () {
-    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, configMock, jsLogger({ enabled: false }));
+  beforeEach(async function () {
+    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, configMock, await jsLogger({ enabled: false }));
   });
 
   afterEach(function () {

@@ -1,7 +1,7 @@
 import { getOtelMixin } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
-import jsLogger, { Logger } from '@map-colonies/js-logger';
+import { jsLogger, type Logger } from '@map-colonies/js-logger';
 import { InjectionObject, registerDependencies } from '@common/dependencyRegistration';
 import { CONSUME_AND_POPULATE_FACTORY, HEALTHCHECK, JOB_QUEUE_PROVIDER, ON_SIGNAL, SERVICES, SERVICE_NAME } from '@common/constants';
 import { getTracing } from '@common/tracing';
@@ -41,12 +41,15 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       {
         token: SERVICES.LOGGER,
         provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
+          useFactory: instancePerContainerCachingFactory(async (container) => {
             const config = container.resolve<ConfigType>(SERVICES.CONFIG);
             const loggerConfig = config.get('telemetry.logger');
-            const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
-            return logger;
+            return jsLogger({ ...loggerConfig, mixin: getOtelMixin() });
           }),
+        },
+        postInjectionHook: async (deps: DependencyContainer): Promise<void> => {
+          const logger = await deps.resolve<Promise<Logger>>(SERVICES.LOGGER);
+          deps.register(SERVICES.LOGGER, { useValue: logger });
         },
       },
       {

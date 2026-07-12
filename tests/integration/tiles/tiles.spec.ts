@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import jsLogger from '@map-colonies/js-logger';
+import { jsLogger } from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
@@ -83,7 +83,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -404,7 +404,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -858,7 +858,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -965,7 +965,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });

@@ -355,16 +355,14 @@ export class TilesManager {
   }
 
   private computeTotalBatches(items: TileRequestQueuePayload['items']): number {
-    const totalTiles = items.reduce((sum, item) => {
-      const { bbox } = areaToBoundingBox(item.area);
-      let itemTiles = 0;
-      for (let zoom = item.minZoom; zoom <= item.maxZoom; zoom++) {
-        const upperLeft = lonLatZoomToTile({ lon: bbox.west, lat: bbox.north }, zoom, this.metatile);
-        const lowerRight = lonLatZoomToTile({ lon: bbox.east, lat: bbox.south }, zoom, this.metatile);
-        itemTiles += (lowerRight.x - upperLeft.x + 1) * (lowerRight.y - upperLeft.y + 1);
+    let totalTiles = 0;
+    for (const item of items) {
+      const { bbox, fromGeojson } = areaToBoundingBox(item.area);
+      for (const tile of this.generateItemTiles(item.area, bbox, fromGeojson, { z: item.minZoom }, item.maxZoom)) {
+        void tile;
+        totalTiles++;
       }
-      return sum + itemTiles;
-    }, 0);
+    }
     return Math.ceil(totalTiles / this.batchSize);
   }
 }

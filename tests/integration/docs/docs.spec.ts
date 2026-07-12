@@ -1,4 +1,4 @@
-import jsLogger from '@map-colonies/js-logger';
+import { jsLogger } from '@map-colonies/js-logger';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { trace } from '@opentelemetry/api';
 import { DependencyContainer } from 'tsyringe';
@@ -19,7 +19,7 @@ describe('docs', function () {
   beforeEach(async function () {
     const [app, initializedContainer] = await getApp({
       override: [
-        { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+        { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
         { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
       ],
       useChild: true,
