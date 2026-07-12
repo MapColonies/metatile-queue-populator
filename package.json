@@ -68,6 +68,7 @@
     "@map-colonies/eslint-config": "^8.0.0",
     "@map-colonies/prettier-config": "^1.0.0",
     "@map-colonies/tsconfig": "^2.0.0",
+    "@vitest/eslint-plugin": "^1.6.19",
     "@redocly/cli": "^2.16.0",
     "@swc/core": "^1.7.26",
     "@swc/jest": "^0.2.36",
