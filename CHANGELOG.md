@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://github.com/MapColonies/metatile-queue-populator/compare/v3.0.0...v3.1.0) (2026-07-05)
+
+
+### Features
+
+* add smart population to MQP (MAPCO-10689) ([fec2b5c](https://github.com/MapColonies/metatile-queue-populator/commit/fec2b5c71fe8f61614f5c0ae2ed698c5f7c8b3aa))
+
 ## [3.0.0](https://github.com/MapColonies/metatile-queue-populator/compare/v2.2.1...v3.0.0) (2026-02-03)
 
 
