@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: metatile-queue-populator
   description: Service for adding metatiles to a queue based on variety of inputs
-  version: 3.0.0
+  version: 3.2.0
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -283,7 +283,9 @@ components:
           type: integer
           minimum: 0
           default: 0
-          description: priority of the tile jobs in the tiles queue — higher values are processed first by the retiler
+          description: >-
+            priority of the tile jobs in the tiles queue — higher values are
+            processed first by the retiler
     BboxTilesRequest:
       allOf:
         - $ref: '#/components/schemas/BaseAreaRequest'
