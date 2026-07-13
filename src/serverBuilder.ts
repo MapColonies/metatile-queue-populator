@@ -6,7 +6,7 @@ import { getErrorHandlerMiddleware } from '@map-colonies/error-express-handler';
 import { middleware as OpenApiMiddleware } from 'express-openapi-validator';
 import { inject, injectable } from 'tsyringe';
 import { type Logger } from '@map-colonies/js-logger';
-import httpLogger from '@map-colonies/express-access-log-middleware';
+import { httpLogger } from '@map-colonies/express-access-log-middleware';
 import { getTraceContexHeaderMiddleware } from '@map-colonies/telemetry';
 import { collectMetricsExpressMiddleware } from '@map-colonies/telemetry/prom-metrics';
 import { Registry } from 'prom-client';

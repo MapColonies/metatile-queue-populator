@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import jsLogger from '@map-colonies/js-logger';
+import { jsLogger } from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import httpStatusCodes from 'http-status-codes';
@@ -83,7 +83,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -404,7 +404,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -795,6 +795,15 @@ describe('tiles', function () {
 
       const geojsonResult = await boss.fetch<Tile>(TILES_QUEUE_NAME, { batchSize: 1000 });
 
+      expect(geojsonResult).not.toBeNull();
+
+      await boss.complete(
+        TILES_QUEUE_NAME,
+        geojsonResult!.map((job) => job.id)
+      );
+
+      await boss.deleteAllJobs();
+
       const bboxRequest = {
         items: [
           {
@@ -858,7 +867,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });
@@ -965,7 +974,7 @@ describe('tiles', function () {
               } satisfies ConfigType,
             },
           },
-          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.LOGGER, provider: { useValue: await jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
         ],
       });

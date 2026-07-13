@@ -1,4 +1,4 @@
-import jsLogger from '@map-colonies/js-logger';
+import { jsLogger, type Logger } from '@map-colonies/js-logger';
 import { faker } from '@faker-js/faker';
 import { Tile } from '@map-colonies/tile-calc';
 import { type JobInsert, type JobWithMetadata, type PgBoss } from 'pg-boss';
@@ -14,7 +14,7 @@ import { BBOX1, BBOX2, GOOD_FEATURE, GOOD_LARGE_FEATURE } from '../../../helpers
 import { boundingBoxToPolygon } from '../../../../src/tiles/models/util';
 import { hashValue } from '../../../../src/common/util';
 
-const logger = jsLogger({ enabled: false });
+let logger!: Logger;
 const queueConfig = { retryDelay: 1, expireInSeconds: 60 };
 const TILES_QUEUE_NAME = 'tiles-requests-test';
 
@@ -25,6 +25,7 @@ describe('tilesManager', () => {
   beforeAll(async () => {
     await initConfig(true);
     config = getConfig();
+    logger = await jsLogger({ enabled: false });
   });
 
   beforeEach(() => {
