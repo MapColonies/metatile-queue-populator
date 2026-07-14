@@ -1,4 +1,4 @@
-import { getOtelMixin } from '@map-colonies/telemetry';
+import { getOtelMixin } from '@map-colonies/tracing-utils';
 import { trace } from '@opentelemetry/api';
 import { Registry } from 'prom-client';
 import { jsLogger, type Logger } from '@map-colonies/js-logger';
