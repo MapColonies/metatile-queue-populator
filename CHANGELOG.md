@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.2.1](https://github.com/MapColonies/metatile-queue-populator/compare/v3.2.0...v3.2.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* update-libs-deps ([#30](https://github.com/MapColonies/metatile-queue-populator/issues/30)) ([7008fa3](https://github.com/MapColonies/metatile-queue-populator/commit/7008fa32f7f4266a62a93dfa2fda4d021c53c674))
+
 ## [3.2.0](https://github.com/MapColonies/metatile-queue-populator/compare/v3.1.0...v3.2.0) (2026-07-13)
 
 
